@@ -1,0 +1,26 @@
+# City, ST — one per line. Launch metro: DC / Northern Virginia / Maryland suburbs
+Arlington, VA
+Alexandria, VA
+Fairfax, VA
+Vienna, VA
+Falls Church, VA
+Annandale, VA
+Springfield, VA
+Chantilly, VA
+Herndon, VA
+Reston, VA
+Sterling, VA
+Ashburn, VA
+Leesburg, VA
+Manassas, VA
+Woodbridge, VA
+Washington, DC
+Bethesda, MD
+Silver Spring, MD
+Rockville, MD
+Gaithersburg, MD
+Germantown, MD
+College Park, MD
+Laurel, MD
+Bowie, MD
+Columbia, MD

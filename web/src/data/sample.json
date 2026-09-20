@@ -1,0 +1,827 @@
+{
+    "places": [
+        {
+            "id": "66926cd6-d998-4e35-a2d5-4be74720ab36",
+            "state": "VA",
+            "city": "Arlington",
+            "slug": "arlington-va",
+            "lat": 38.8816,
+            "lng": -77.091,
+            "population": 238000,
+            "created_at": "2026-09-20T21:19:35.035205+00:00"
+        },
+        {
+            "id": "4cc157f2-9e25-4047-8fb7-dcd53ff84fd3",
+            "state": "VA",
+            "city": "Alexandria",
+            "slug": "alexandria-va",
+            "lat": 38.8048,
+            "lng": -77.0469,
+            "population": 159000,
+            "created_at": "2026-09-20T21:19:35.035205+00:00"
+        },
+        {
+            "id": "24dde6be-a78c-4517-9776-f59fc942169c",
+            "state": "VA",
+            "city": "Fairfax",
+            "slug": "fairfax-va",
+            "lat": 38.8462,
+            "lng": -77.3064,
+            "population": 24000,
+            "created_at": "2026-09-20T21:19:35.035205+00:00"
+        },
+        {
+            "id": "aec10bea-c750-4aef-8be3-b7ad4697ad96",
+            "state": "VA",
+            "city": "Vienna",
+            "slug": "vienna-va",
+            "lat": 38.9012,
+            "lng": -77.2653,
+            "population": 16000,
+            "created_at": "2026-09-20T21:19:35.035205+00:00"
+        },
+        {
+            "id": "08ce2c56-3356-42a9-8219-fd6b6c5fbc55",
+            "state": "DC",
+            "city": "Washington",
+            "slug": "washington-dc",
+            "lat": 38.9072,
+            "lng": -77.0369,
+            "population": 690000,
+            "created_at": "2026-09-20T21:19:35.035205+00:00"
+        },
+        {
+            "id": "93ed6f74-828e-4419-be24-f96fbf0261ca",
+            "state": "MD",
+            "city": "Silver Spring",
+            "slug": "silver-spring-md",
+            "lat": 38.9907,
+            "lng": -77.0261,
+            "population": 81000,
+            "created_at": "2026-09-20T21:19:35.035205+00:00"
+        }
+    ],
+    "gyms": [
+        {
+            "id": "87a216b6-6f61-4d8b-adbf-a7a8f87ec085",
+            "slug": "sample-siam-strike-arlington-va",
+            "name": "Siam Strike Muay Thai",
+            "styles": [
+                "muay_thai",
+                "kickboxing"
+            ],
+            "tags": [
+                "beginner_friendly",
+                "fighter_gym",
+                "thai_trainers"
+            ],
+            "address": "1200 Sample Blvd, Arlington, VA 22201",
+            "lat": 38.8895,
+            "lng": -77.087,
+            "website": "https://example.com/siamstrike",
+            "instagram": "siamstrike",
+            "google_rating": 4.9,
+            "google_reviews": 212,
+            "claimed": true,
+            "is_sample": true,
+            "place_slug": "arlington-va",
+            "city": "Arlington",
+            "state": "VA",
+            "drop_in_cents": 3000,
+            "monthly_cents": 17900,
+            "active_fighters": 3,
+            "pro_fighters": 1
+        },
+        {
+            "id": "a762b853-4dce-428a-accf-42ee79acee3e",
+            "slug": "sample-eight-limbs-alexandria-va",
+            "name": "Eight Limbs Alexandria",
+            "styles": [
+                "muay_thai"
+            ],
+            "tags": [
+                "beginner_friendly",
+                "womens",
+                "kids"
+            ],
+            "address": "77 Sample Ave, Alexandria, VA 22314",
+            "lat": 38.806,
+            "lng": -77.05,
+            "website": "https://example.com/eightlimbs",
+            "instagram": "eightlimbsalx",
+            "google_rating": 4.8,
+            "google_reviews": 98,
+            "claimed": false,
+            "is_sample": true,
+            "place_slug": "alexandria-va",
+            "city": "Alexandria",
+            "state": "VA",
+            "drop_in_cents": 2500,
+            "monthly_cents": 15900,
+            "active_fighters": 0,
+            "pro_fighters": 0
+        },
+        {
+            "id": "36967e6b-a494-420d-b4c5-1fdc6c9d24ca",
+            "slug": "sample-nova-kickboxing-fairfax-va",
+            "name": "NoVA Kickboxing & Muay Thai",
+            "styles": [
+                "kickboxing",
+                "muay_thai",
+                "boxing"
+            ],
+            "tags": [
+                "beginner_friendly"
+            ],
+            "address": "9000 Sample Pkwy, Fairfax, VA 22031",
+            "lat": 38.86,
+            "lng": -77.3,
+            "website": "https://example.com/novakick",
+            "instagram": "novakickboxing",
+            "google_rating": 4.6,
+            "google_reviews": 155,
+            "claimed": false,
+            "is_sample": true,
+            "place_slug": "fairfax-va",
+            "city": "Fairfax",
+            "state": "VA",
+            "drop_in_cents": 2000,
+            "monthly_cents": 13900,
+            "active_fighters": 0,
+            "pro_fighters": 0
+        },
+        {
+            "id": "1fb96bbd-8252-4895-a738-4fecb5cf7c8b",
+            "slug": "sample-vienna-muay-thai-vienna-va",
+            "name": "Vienna Muay Thai Academy",
+            "styles": [
+                "muay_thai"
+            ],
+            "tags": [
+                "beginner_friendly",
+                "thai_trainers"
+            ],
+            "address": "300 Sample Ln SE, Vienna, VA 22180",
+            "lat": 38.899,
+            "lng": -77.26,
+            "website": "https://example.com/viennamt",
+            "instagram": "viennamuaythai",
+            "google_rating": 5.0,
+            "google_reviews": 41,
+            "claimed": true,
+            "is_sample": true,
+            "place_slug": "vienna-va",
+            "city": "Vienna",
+            "state": "VA",
+            "drop_in_cents": 2500,
+            "monthly_cents": 16500,
+            "active_fighters": 1,
+            "pro_fighters": 0
+        },
+        {
+            "id": "8e400b03-b16e-463e-9fa2-fe9c2f8b65e8",
+            "slug": "sample-capital-fight-lab-washington-dc",
+            "name": "Capital Fight Lab",
+            "styles": [
+                "muay_thai",
+                "mma",
+                "bjj"
+            ],
+            "tags": [
+                "fighter_gym",
+                "open_mat"
+            ],
+            "address": "450 Sample St NW, Washington, DC 20001",
+            "lat": 38.901,
+            "lng": -77.02,
+            "website": "https://example.com/capitalfightlab",
+            "instagram": "capitalfightlab",
+            "google_rating": 4.7,
+            "google_reviews": 340,
+            "claimed": true,
+            "is_sample": true,
+            "place_slug": "washington-dc",
+            "city": "Washington",
+            "state": "DC",
+            "drop_in_cents": 3500,
+            "monthly_cents": 21900,
+            "active_fighters": 3,
+            "pro_fighters": 1
+        },
+        {
+            "id": "acb9cd5c-6629-431b-8f08-0ea9550585b7",
+            "slug": "sample-silver-spring-fight-club-silver-spring-md",
+            "name": "Silver Spring Fight Club",
+            "styles": [
+                "mma",
+                "muay_thai",
+                "bjj",
+                "wrestling"
+            ],
+            "tags": [
+                "fighter_gym",
+                "open_mat",
+                "kids"
+            ],
+            "address": "8500 Sample Rd, Silver Spring, MD 20910",
+            "lat": 38.995,
+            "lng": -77.03,
+            "website": "https://example.com/ssfc",
+            "instagram": "ssfightclub",
+            "google_rating": 4.5,
+            "google_reviews": 267,
+            "claimed": false,
+            "is_sample": true,
+            "place_slug": "silver-spring-md",
+            "city": "Silver Spring",
+            "state": "MD",
+            "drop_in_cents": 3000,
+            "monthly_cents": 18900,
+            "active_fighters": 2,
+            "pro_fighters": 1
+        }
+    ],
+    "gym_details": {
+        "sample-siam-strike-arlington-va": {
+            "description": "Traditional Thai-run gym with a fundamentals track and an active amateur fight team.",
+            "phone": "(703) 555-0101",
+            "affiliation": null,
+            "founded_year": 2014,
+            "website": "https://example.com/siamstrike",
+            "prices": [
+                {
+                    "gym_id": "87a216b6-6f61-4d8b-adbf-a7a8f87ec085",
+                    "kind": "drop_in",
+                    "amount_cents": 3000,
+                    "currency": "usd",
+                    "contract_months": null,
+                    "free_trial": null,
+                    "notes": null,
+                    "verified_at": "2026-09-20",
+                    "verified_by": "manual"
+                },
+                {
+                    "gym_id": "87a216b6-6f61-4d8b-adbf-a7a8f87ec085",
+                    "kind": "fighter",
+                    "amount_cents": 9900,
+                    "currency": "usd",
+                    "contract_months": null,
+                    "free_trial": null,
+                    "notes": "fight team rate, coach approval",
+                    "verified_at": "2026-09-20",
+                    "verified_by": "manual"
+                },
+                {
+                    "gym_id": "87a216b6-6f61-4d8b-adbf-a7a8f87ec085",
+                    "kind": "monthly",
+                    "amount_cents": 17900,
+                    "currency": "usd",
+                    "contract_months": 12,
+                    "free_trial": true,
+                    "notes": "first class free",
+                    "verified_at": "2026-09-20",
+                    "verified_by": "manual"
+                }
+            ],
+            "classes": [
+                {
+                    "dow": 1,
+                    "start_time": "06:30:00",
+                    "end_time": "07:30:00",
+                    "name": "Morning Muay Thai",
+                    "level": "all",
+                    "style": "muay_thai"
+                },
+                {
+                    "dow": 1,
+                    "start_time": "18:00:00",
+                    "end_time": "19:00:00",
+                    "name": "Fundamentals",
+                    "level": "beginner",
+                    "style": "muay_thai"
+                },
+                {
+                    "dow": 1,
+                    "start_time": "19:00:00",
+                    "end_time": "20:30:00",
+                    "name": "Fight Team",
+                    "level": "fighters",
+                    "style": "muay_thai"
+                },
+                {
+                    "dow": 2,
+                    "start_time": "18:00:00",
+                    "end_time": "19:00:00",
+                    "name": "Muay Thai All Levels",
+                    "level": "all",
+                    "style": "muay_thai"
+                },
+                {
+                    "dow": 3,
+                    "start_time": "06:30:00",
+                    "end_time": "07:30:00",
+                    "name": "Morning Muay Thai",
+                    "level": "all",
+                    "style": "muay_thai"
+                },
+                {
+                    "dow": 3,
+                    "start_time": "18:00:00",
+                    "end_time": "19:00:00",
+                    "name": "Fundamentals",
+                    "level": "beginner",
+                    "style": "muay_thai"
+                },
+                {
+                    "dow": 3,
+                    "start_time": "19:00:00",
+                    "end_time": "20:30:00",
+                    "name": "Fight Team",
+                    "level": "fighters",
+                    "style": "muay_thai"
+                },
+                {
+                    "dow": 4,
+                    "start_time": "18:00:00",
+                    "end_time": "19:00:00",
+                    "name": "Clinch & Sparring",
+                    "level": "advanced",
+                    "style": "muay_thai"
+                },
+                {
+                    "dow": 5,
+                    "start_time": "18:00:00",
+                    "end_time": "19:00:00",
+                    "name": "Muay Thai All Levels",
+                    "level": "all",
+                    "style": "muay_thai"
+                },
+                {
+                    "dow": 6,
+                    "start_time": "10:00:00",
+                    "end_time": "11:30:00",
+                    "name": "Open Mat / Sparring",
+                    "level": "advanced",
+                    "style": "muay_thai"
+                }
+            ],
+            "coaches": [
+                {
+                    "id": "997560f3-ee29-492c-926f-af30861183ee",
+                    "gym_id": "87a216b6-6f61-4d8b-adbf-a7a8f87ec085",
+                    "slug": "sample-coach-danny-r",
+                    "name": "Danny R.",
+                    "is_thai": false,
+                    "lineage": "Student of Kru Somchai since 2014",
+                    "pro_record": "8-2-0 (am)",
+                    "instagram": null,
+                    "bio": null
+                },
+                {
+                    "id": "91d7c4d7-ca19-475d-85af-b783c0027a63",
+                    "gym_id": "87a216b6-6f61-4d8b-adbf-a7a8f87ec085",
+                    "slug": "sample-kru-somchai",
+                    "name": "Kru Somchai",
+                    "is_thai": true,
+                    "lineage": "Fought out of a Bangkok stadium gym for 12 years",
+                    "pro_record": "112-30-4",
+                    "instagram": null,
+                    "bio": null
+                }
+            ],
+            "fighters": [
+                {
+                    "id": "4f98e570-de27-424e-b185-3baedb6b7383",
+                    "slug": "sample-fighter-a3",
+                    "name": "M. Reyes",
+                    "gym_id": "87a216b6-6f61-4d8b-adbf-a7a8f87ec085",
+                    "tapology_id": null,
+                    "smoothcomp_id": null,
+                    "sherdog_id": null,
+                    "discipline": "muay_thai",
+                    "level": "pro",
+                    "weight_class": "155",
+                    "record_w": 9,
+                    "record_l": 3,
+                    "record_d": 0,
+                    "last_bout": "2026-08-31",
+                    "source_id": null,
+                    "updated_at": "2026-09-20T21:19:35.045347+00:00"
+                },
+                {
+                    "id": "a1c17a0c-2cab-4448-947a-969248375863",
+                    "slug": "sample-fighter-a1",
+                    "name": "A. Nguyen",
+                    "gym_id": "87a216b6-6f61-4d8b-adbf-a7a8f87ec085",
+                    "tapology_id": null,
+                    "smoothcomp_id": null,
+                    "sherdog_id": null,
+                    "discipline": "muay_thai",
+                    "level": "amateur",
+                    "weight_class": "147",
+                    "record_w": 6,
+                    "record_l": 1,
+                    "record_d": 0,
+                    "last_bout": "2026-08-11",
+                    "source_id": null,
+                    "updated_at": "2026-09-20T21:19:35.045347+00:00"
+                },
+                {
+                    "id": "3a7c5ac0-00a6-49ab-b8a2-75abb1bb3847",
+                    "slug": "sample-fighter-a2",
+                    "name": "J. Park",
+                    "gym_id": "87a216b6-6f61-4d8b-adbf-a7a8f87ec085",
+                    "tapology_id": null,
+                    "smoothcomp_id": null,
+                    "sherdog_id": null,
+                    "discipline": "muay_thai",
+                    "level": "amateur",
+                    "weight_class": "135",
+                    "record_w": 3,
+                    "record_l": 2,
+                    "record_d": 0,
+                    "last_bout": "2026-06-22",
+                    "source_id": null,
+                    "updated_at": "2026-09-20T21:19:35.045347+00:00"
+                }
+            ]
+        },
+        "sample-capital-fight-lab-washington-dc": {
+            "description": "Hybrid MMA gym. Muay thai mornings and evenings, BJJ and wrestling in between, pro fighters on the mat.",
+            "phone": "(202) 555-0102",
+            "affiliation": null,
+            "founded_year": 2011,
+            "website": "https://example.com/capitalfightlab",
+            "prices": [
+                {
+                    "gym_id": "8e400b03-b16e-463e-9fa2-fe9c2f8b65e8",
+                    "kind": "drop_in",
+                    "amount_cents": 3500,
+                    "currency": "usd",
+                    "contract_months": null,
+                    "free_trial": null,
+                    "notes": null,
+                    "verified_at": "2026-09-20",
+                    "verified_by": "manual"
+                },
+                {
+                    "gym_id": "8e400b03-b16e-463e-9fa2-fe9c2f8b65e8",
+                    "kind": "monthly",
+                    "amount_cents": 21900,
+                    "currency": "usd",
+                    "contract_months": 6,
+                    "free_trial": false,
+                    "notes": null,
+                    "verified_at": "2026-09-20",
+                    "verified_by": "manual"
+                }
+            ],
+            "classes": [],
+            "coaches": [
+                {
+                    "id": "7d830009-5172-4842-9c07-ededec65e06a",
+                    "gym_id": "8e400b03-b16e-463e-9fa2-fe9c2f8b65e8",
+                    "slug": "sample-coach-marcus-t",
+                    "name": "Marcus T.",
+                    "is_thai": false,
+                    "lineage": "Former regional MMA champion",
+                    "pro_record": "14-5-0 (pro)",
+                    "instagram": null,
+                    "bio": null
+                }
+            ],
+            "fighters": [
+                {
+                    "id": "afea4a20-19b4-44c8-9963-509f4ee82e7a",
+                    "slug": "sample-fighter-b2",
+                    "name": "L. Chen",
+                    "gym_id": "8e400b03-b16e-463e-9fa2-fe9c2f8b65e8",
+                    "tapology_id": null,
+                    "smoothcomp_id": null,
+                    "sherdog_id": null,
+                    "discipline": "mma",
+                    "level": "amateur",
+                    "weight_class": "145",
+                    "record_w": 4,
+                    "record_l": 0,
+                    "record_d": 0,
+                    "last_bout": "2026-09-05",
+                    "source_id": null,
+                    "updated_at": "2026-09-20T21:19:35.045347+00:00"
+                },
+                {
+                    "id": "9c63e186-6db8-423a-a326-423c56aacd0f",
+                    "slug": "sample-fighter-b1",
+                    "name": "T. Okafor",
+                    "gym_id": "8e400b03-b16e-463e-9fa2-fe9c2f8b65e8",
+                    "tapology_id": null,
+                    "smoothcomp_id": null,
+                    "sherdog_id": null,
+                    "discipline": "mma",
+                    "level": "pro",
+                    "weight_class": "170",
+                    "record_w": 11,
+                    "record_l": 4,
+                    "record_d": 0,
+                    "last_bout": "2026-07-22",
+                    "source_id": null,
+                    "updated_at": "2026-09-20T21:19:35.045347+00:00"
+                },
+                {
+                    "id": "e2197145-3375-4a04-9098-5c97837df84d",
+                    "slug": "sample-fighter-b3",
+                    "name": "R. Diaz",
+                    "gym_id": "8e400b03-b16e-463e-9fa2-fe9c2f8b65e8",
+                    "tapology_id": null,
+                    "smoothcomp_id": null,
+                    "sherdog_id": null,
+                    "discipline": "muay_thai",
+                    "level": "amateur",
+                    "weight_class": "160",
+                    "record_w": 2,
+                    "record_l": 1,
+                    "record_d": 0,
+                    "last_bout": "2026-03-04",
+                    "source_id": null,
+                    "updated_at": "2026-09-20T21:19:35.045347+00:00"
+                }
+            ]
+        },
+        "sample-eight-limbs-alexandria-va": {
+            "description": "Boutique muay thai studio with small classes, a women-only track, and kids programs.",
+            "phone": "(703) 555-0103",
+            "affiliation": null,
+            "founded_year": 2019,
+            "website": "https://example.com/eightlimbs",
+            "prices": [
+                {
+                    "gym_id": "a762b853-4dce-428a-accf-42ee79acee3e",
+                    "kind": "drop_in",
+                    "amount_cents": 2500,
+                    "currency": "usd",
+                    "contract_months": null,
+                    "free_trial": null,
+                    "notes": null,
+                    "verified_at": "2026-09-20",
+                    "verified_by": "manual"
+                },
+                {
+                    "gym_id": "a762b853-4dce-428a-accf-42ee79acee3e",
+                    "kind": "monthly",
+                    "amount_cents": 15900,
+                    "currency": "usd",
+                    "contract_months": 0,
+                    "free_trial": true,
+                    "notes": "month to month",
+                    "verified_at": "2026-09-20",
+                    "verified_by": "manual"
+                }
+            ],
+            "classes": [
+                {
+                    "dow": 1,
+                    "start_time": "17:30:00",
+                    "end_time": "18:30:00",
+                    "name": "Beginner Muay Thai",
+                    "level": "beginner",
+                    "style": "muay_thai"
+                },
+                {
+                    "dow": 1,
+                    "start_time": "18:30:00",
+                    "end_time": "19:30:00",
+                    "name": "Women's Muay Thai",
+                    "level": "all",
+                    "style": "muay_thai"
+                },
+                {
+                    "dow": 2,
+                    "start_time": "17:30:00",
+                    "end_time": "18:30:00",
+                    "name": "All Levels",
+                    "level": "all",
+                    "style": "muay_thai"
+                },
+                {
+                    "dow": 3,
+                    "start_time": "17:30:00",
+                    "end_time": "18:30:00",
+                    "name": "Beginner Muay Thai",
+                    "level": "beginner",
+                    "style": "muay_thai"
+                },
+                {
+                    "dow": 4,
+                    "start_time": "17:30:00",
+                    "end_time": "18:30:00",
+                    "name": "All Levels",
+                    "level": "all",
+                    "style": "muay_thai"
+                },
+                {
+                    "dow": 6,
+                    "start_time": "09:00:00",
+                    "end_time": "10:00:00",
+                    "name": "Kids Muay Thai",
+                    "level": "kids",
+                    "style": "muay_thai"
+                },
+                {
+                    "dow": 6,
+                    "start_time": "10:00:00",
+                    "end_time": "11:00:00",
+                    "name": "All Levels",
+                    "level": "all",
+                    "style": "muay_thai"
+                }
+            ],
+            "coaches": [],
+            "fighters": []
+        },
+        "sample-nova-kickboxing-fairfax-va": {
+            "description": "Dutch-style kickboxing with a muay thai clinch class twice a week.",
+            "phone": "(703) 555-0104",
+            "affiliation": null,
+            "founded_year": 2008,
+            "website": "https://example.com/novakick",
+            "prices": [
+                {
+                    "gym_id": "36967e6b-a494-420d-b4c5-1fdc6c9d24ca",
+                    "kind": "drop_in",
+                    "amount_cents": 2000,
+                    "currency": "usd",
+                    "contract_months": null,
+                    "free_trial": null,
+                    "notes": null,
+                    "verified_at": "2026-09-20",
+                    "verified_by": "manual"
+                },
+                {
+                    "gym_id": "36967e6b-a494-420d-b4c5-1fdc6c9d24ca",
+                    "kind": "monthly",
+                    "amount_cents": 13900,
+                    "currency": "usd",
+                    "contract_months": 12,
+                    "free_trial": true,
+                    "notes": null,
+                    "verified_at": "2026-09-20",
+                    "verified_by": "manual"
+                }
+            ],
+            "classes": [],
+            "coaches": [],
+            "fighters": []
+        },
+        "sample-vienna-muay-thai-vienna-va": {
+            "description": "Small Sitmonchai-affiliated gym. Two Thai trainers, strong on fundamentals.",
+            "phone": "(703) 555-0105",
+            "affiliation": "sitmonchai",
+            "founded_year": 2022,
+            "website": "https://example.com/viennamt",
+            "prices": [
+                {
+                    "gym_id": "1fb96bbd-8252-4895-a738-4fecb5cf7c8b",
+                    "kind": "drop_in",
+                    "amount_cents": 2500,
+                    "currency": "usd",
+                    "contract_months": null,
+                    "free_trial": null,
+                    "notes": null,
+                    "verified_at": "2026-09-20",
+                    "verified_by": "manual"
+                },
+                {
+                    "gym_id": "1fb96bbd-8252-4895-a738-4fecb5cf7c8b",
+                    "kind": "monthly",
+                    "amount_cents": 16500,
+                    "currency": "usd",
+                    "contract_months": 0,
+                    "free_trial": true,
+                    "notes": null,
+                    "verified_at": "2026-09-20",
+                    "verified_by": "manual"
+                }
+            ],
+            "classes": [],
+            "coaches": [
+                {
+                    "id": "f6bd0fc0-d2d4-4904-b193-251d732ec4a3",
+                    "gym_id": "1fb96bbd-8252-4895-a738-4fecb5cf7c8b",
+                    "slug": "sample-kru-nok",
+                    "name": "Kru Nok",
+                    "is_thai": true,
+                    "lineage": "Sitmonchai camp",
+                    "pro_record": "80-25-2",
+                    "instagram": null,
+                    "bio": null
+                }
+            ],
+            "fighters": [
+                {
+                    "id": "644d366a-17a9-472a-8d0d-2f2804075914",
+                    "slug": "sample-fighter-d1",
+                    "name": "P. Tran",
+                    "gym_id": "1fb96bbd-8252-4895-a738-4fecb5cf7c8b",
+                    "tapology_id": null,
+                    "smoothcomp_id": null,
+                    "sherdog_id": null,
+                    "discipline": "muay_thai",
+                    "level": "amateur",
+                    "weight_class": "125",
+                    "record_w": 1,
+                    "record_l": 0,
+                    "record_d": 0,
+                    "last_bout": "2026-09-10",
+                    "source_id": null,
+                    "updated_at": "2026-09-20T21:19:35.045347+00:00"
+                }
+            ]
+        },
+        "sample-silver-spring-fight-club-silver-spring-md": {
+            "description": "Fight-team-first MMA gym. Muay thai program feeds the amateur MMA roster.",
+            "phone": "(301) 555-0106",
+            "affiliation": null,
+            "founded_year": 2012,
+            "website": "https://example.com/ssfc",
+            "prices": [
+                {
+                    "gym_id": "acb9cd5c-6629-431b-8f08-0ea9550585b7",
+                    "kind": "drop_in",
+                    "amount_cents": 3000,
+                    "currency": "usd",
+                    "contract_months": null,
+                    "free_trial": null,
+                    "notes": null,
+                    "verified_at": "2026-09-20",
+                    "verified_by": "manual"
+                },
+                {
+                    "gym_id": "acb9cd5c-6629-431b-8f08-0ea9550585b7",
+                    "kind": "monthly",
+                    "amount_cents": 18900,
+                    "currency": "usd",
+                    "contract_months": 12,
+                    "free_trial": false,
+                    "notes": null,
+                    "verified_at": "2026-09-20",
+                    "verified_by": "manual"
+                }
+            ],
+            "classes": [],
+            "coaches": [],
+            "fighters": [
+                {
+                    "id": "3de50a99-2d00-4e90-a58b-f0052f9c6dc9",
+                    "slug": "sample-fighter-c1",
+                    "name": "K. Mensah",
+                    "gym_id": "acb9cd5c-6629-431b-8f08-0ea9550585b7",
+                    "tapology_id": null,
+                    "smoothcomp_id": null,
+                    "sherdog_id": null,
+                    "discipline": "mma",
+                    "level": "amateur",
+                    "weight_class": "185",
+                    "record_w": 5,
+                    "record_l": 2,
+                    "record_d": 0,
+                    "last_bout": "2026-08-21",
+                    "source_id": null,
+                    "updated_at": "2026-09-20T21:19:35.045347+00:00"
+                },
+                {
+                    "id": "5bf8e803-bc54-44fd-9a87-4d4643119cca",
+                    "slug": "sample-fighter-c2",
+                    "name": "D. Ali",
+                    "gym_id": "acb9cd5c-6629-431b-8f08-0ea9550585b7",
+                    "tapology_id": null,
+                    "smoothcomp_id": null,
+                    "sherdog_id": null,
+                    "discipline": "mma",
+                    "level": "pro",
+                    "weight_class": "155",
+                    "record_w": 7,
+                    "record_l": 6,
+                    "record_d": 1,
+                    "last_bout": "2025-08-16",
+                    "source_id": null,
+                    "updated_at": "2026-09-20T21:19:35.045347+00:00"
+                }
+            ]
+        }
+    },
+    "events": [
+        {
+            "id": "f12d3c13-5be7-4e4e-97ef-e3fbf62c3dde",
+            "slug": "sample-dmv-fight-night-12",
+            "name": "DMV Fight Night 12",
+            "promotion": "Sample Promotions",
+            "sanctioning_body": "usmta",
+            "date": "2026-10-11",
+            "venue": "Sample Arena, Fairfax, VA",
+            "place_id": "24dde6be-a78c-4517-9776-f59fc942169c",
+            "url": "https://example.com/dfn12",
+            "accepting_amateurs": true,
+            "source_id": null
+        }
+    ]
+}
