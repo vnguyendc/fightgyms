@@ -19,10 +19,13 @@ no env needed — with no `NEXT_PUBLIC_SUPABASE_URL` it serves `web/src/data/sam
 
 ## wire supabase
 
-1. create a project, run `supabase/migrations/0001_init.sql` in the SQL editor (or `supabase db push`)
+1. create a project, run `supabase/migrations/0001_init.sql` — no psql needed: `cd scrapers && python run_sql.py ../supabase/migrations/0001_init.sql`
 2. optionally `supabase/seed.sql` for the demo rows (they're flagged `is_sample` and hidden in prod)
 3. copy `web/.env.example` → `web/.env.local`, fill the url + anon key
-4. `cd scrapers && pip install -r requirements.txt && python seed_places.py --cities cities/dmv.txt --dry-run`
+4. `scrapers/.env` needs `DATABASE_URL` (use the **session pooler**, the direct host is IPv6-only), `GOOGLE_PLACES_KEY`, `ANTHROPIC_API_KEY` — see `scrapers/README.md`
+5. `cd scrapers && python seed_places.py --cities cities/dmv.txt --dry-run`, eyeball it, then without `--dry-run`, then `python extract_site.py`
+
+local `next build` caches supabase responses in `.next/cache/fetch-cache` across builds (routes set `revalidate`); `rm -rf web/.next/cache/fetch-cache` when the db changed and the build looks stale. production ISR revalidates hourly.
 
 ## routes
 
@@ -41,6 +44,7 @@ no env needed — with no `NEXT_PUBLIC_SUPABASE_URL` it serves `web/src/data/sam
 
 - [ ] `/api/submissions` route + magic-link auth for claims
 - [ ] `scrapers/enrich_tapology.py` → fighters table
+- [ ] schedules behind mindbody / zenplanner / gymdesk widgets (detected + stored on `sources`, not extracted — needs a headless fetch or the widget's own endpoint)
 - [ ] `/gyms/[state]/[city]/drop-in`, `/beginner`, `/fighter-gyms` templates
 - [ ] `/fighters/[slug]` and `/coaches/[slug]` pages
 - [ ] cost-by-city editorial pages backed by the `gym_current_prices` view

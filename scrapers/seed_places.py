@@ -19,6 +19,7 @@ import re
 import sys
 import time
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
@@ -45,7 +46,7 @@ STYLE_PATTERNS = {
     "bjj": r"\bbjj\b|jiu.?jitsu|gracie",
     "wrestling": r"wrestling",
 }
-NOISE = r"karate|taekwondo|tae kwon do|krav|self.?defen[cs]e only|fitness kickboxing|9round|ilovekickboxing|cardio"
+NOISE = r"karate|taekwondo|tae kwon do|krav|self.?defen[cs]e only|fitness kickboxing|9round|ilovekickboxing|cardio|rehab|physical therap|physiotherap"
 
 
 def detect_styles(text: str) -> list[str]:
@@ -53,11 +54,58 @@ def detect_styles(text: str) -> list[str]:
     return [s for s, pat in STYLE_PATTERNS.items() if re.search(pat, t)]
 
 
-def search(query: str, city: str, state: str) -> list[dict]:
+def locality(p: dict, fallback_city: str, fallback_state: str) -> tuple[str, str] | None:
+    """Real city/state from Google's address components. Text search for "X in Arlington"
+    happily returns gyms in Falls Church, Alexandria and DC; we must not file them under Arlington."""
+    city = state = country = None
+    for c in p.get("addressComponents", []):
+        t = c.get("types", [])
+        if "locality" in t and not city:
+            city = c.get("longText")
+        elif "administrative_area_level_1" in t:
+            state = c.get("shortText")
+        elif "country" in t:
+            country = c.get("shortText")
+    # "alexandria, va" also matches alexandria, egypt. only US 2-letter states fit places.state char(2).
+    if (country and country != "US") or (state and not re.fullmatch(r"[A-Z]{2}", state)):
+        return None
+    return city or fallback_city, state or fallback_state
+
+
+def clean_url(u: str | None) -> str | None:
+    """Drop utm_* and other tracking params Google attaches to websiteUri."""
+    if not u:
+        return None
+    parts = urlsplit(u)
+    keep = "&".join(kv for kv in parts.query.split("&") if kv and not kv.lower().startswith(("utm_", "gclid", "fbclid")))
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, keep, ""))
+
+
+RADIUS_M = 30_000  # text search otherwise drifts to virginia beach / florida for sparse queries
+
+
+def city_center(city: str, state: str) -> tuple[float, float]:
+    r = httpx.post(
+        API,
+        headers={"X-Goog-Api-Key": KEY, "X-Goog-FieldMask": "places.location,places.formattedAddress"},
+        json={"textQuery": f"{city}, {state}", "includedType": "locality", "regionCode": "US", "pageSize": 1},
+        timeout=30,
+    )
+    r.raise_for_status()
+    loc = r.json()["places"][0]["location"]
+    return loc["latitude"], loc["longitude"]
+
+
+def search(query: str, city: str, state: str, center: tuple[float, float]) -> list[dict]:
     out: list[dict] = []
     token = None
     for _ in range(3):  # up to 60 results per query/city
-        body = {"textQuery": f"{query} in {city}, {state}", "pageSize": 20}
+        body = {
+            "textQuery": f"{query} in {city}, {state}",
+            "pageSize": 20,
+            "regionCode": "US",
+            "locationRestriction": {"circle": {"center": {"latitude": center[0], "longitude": center[1]}, "radius": RADIUS_M}},
+        }
         if token:
             body["pageToken"] = token
         r = httpx.post(
@@ -83,6 +131,11 @@ def to_gym(p: dict, city: str, state: str) -> dict | None:
     if not styles or re.search(NOISE, blob.lower()) and "muay_thai" not in styles:
         return None
     loc = p.get("location", {})
+    where = locality(p, city, state)
+    if not where:
+        print(f"  skip non-US: {name} ({p.get('formattedAddress')})", file=sys.stderr)
+        return None
+    city, state = where
     return {
         "name": name,
         "city": city,
@@ -91,7 +144,7 @@ def to_gym(p: dict, city: str, state: str) -> dict | None:
         "address": p.get("formattedAddress"),
         "lat": loc.get("latitude"),
         "lng": loc.get("longitude"),
-        "website": p.get("websiteUri"),
+        "website": clean_url(p.get("websiteUri")),
         "phone": p.get("nationalPhoneNumber"),
         "google_place_id": p["id"],
         "google_rating": p.get("rating"),
@@ -111,25 +164,29 @@ def main() -> None:
     total = 0
     for line in cities:
         city, state = [x.strip() for x in line.split(",")]
+        center = city_center(city, state)
         seen: dict[str, dict] = {}
         for q in QUERIES:
-            for p in search(q, city, state):
+            for p in search(q, city, state, center):
                 seen.setdefault(p["id"], p)
         gyms = [g for g in (to_gym(p, city, state) for p in seen.values()) if g]
         print(f"{city}, {state}: {len(seen)} places -> {len(gyms)} gyms", file=sys.stderr)
+        total += len(gyms)
         if args.dry_run:
             for g in gyms:
                 print(json.dumps(g))
             continue
         with conn() as c, c.cursor() as cur:
-            place_id = upsert_place(cur, state, city)
+            place_ids: dict[tuple[str, str], str] = {(state, city): upsert_place(cur, state, city, *center)}
             for g in gyms:
+                key = (g["state"], g["city"])
+                if key not in place_ids:
+                    place_ids[key] = upsert_place(cur, *key)
                 raw = seen[g["google_place_id"]]
                 add_source(cur, "google_places", None, raw)
-                g["place_id"] = place_id
+                g["place_id"] = place_ids[key]
                 upsert_gym(cur, g)
             c.commit()
-        total += len(gyms)
     print(f"done: {total} gyms", file=sys.stderr)
 
 

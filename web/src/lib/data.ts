@@ -5,7 +5,7 @@
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import sample from "@/data/sample.json";
-import type { Event, GymCard, GymDetail, Place, Style } from "./types";
+import { LIVE_STYLES, type Event, type GymCard, type GymDetail, type Place, type Style } from "./types";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -27,13 +27,18 @@ type SampleData = {
 const S = sample as unknown as SampleData;
 
 const visible = (g: { is_sample: boolean }) => showSample || !g.is_sample;
+// only gyms with at least one public discipline are listed; bjj/boxing-only rows stay in the db behind the flag
+const live = (g: { styles: Style[] }) => g.styles.some((s) => LIVE_STYLES.includes(s));
 
 // ---------------------------------------------------------------------------
 
+/** Places that have at least one listed gym — a city page with nothing on it is a thin page, not a landing page. */
 export async function getPlaces(): Promise<Place[]> {
+  const gyms = await getAllGyms();
+  const withGyms = new Set(gyms.map((g) => g.place_slug));
   const c = sb();
-  if (!c) return S.places;
-  const { data } = await c.from("places").select("*").order("state").order("city");
+  if (!c) return S.places.filter((p) => withGyms.has(p.slug));
+  const { data } = await c.from("places").select("*").in("slug", [...withGyms]).order("state").order("city");
   return data ?? [];
 }
 
@@ -50,23 +55,24 @@ export async function getGymsByPlace(placeSlug: string, style?: Style): Promise<
   if (!c) {
     rows = S.gyms.filter((g) => g.place_slug === placeSlug);
   } else {
-    let q = c.from("gym_cards").select("*").eq("place_slug", placeSlug);
+    let q = c.from("gym_cards").select("*").eq("place_slug", placeSlug).overlaps("styles", LIVE_STYLES);
     if (!showSample) q = q.eq("is_sample", false);
     if (style) q = q.contains("styles", [style]);
     rows = (await q).data ?? [];
   }
   return rows
     .filter(visible)
+    .filter(live)
     .filter((g) => !style || g.styles.includes(style))
     .sort((a, b) => b.active_fighters - a.active_fighters || (b.google_reviews ?? 0) - (a.google_reviews ?? 0));
 }
 
 export async function getAllGyms(): Promise<GymCard[]> {
   const c = sb();
-  if (!c) return S.gyms.filter(visible);
-  let q = c.from("gym_cards").select("*");
+  if (!c) return S.gyms.filter(visible).filter(live);
+  let q = c.from("gym_cards").select("*").overlaps("styles", LIVE_STYLES);
   if (!showSample) q = q.eq("is_sample", false);
-  return (await q).data ?? [];
+  return ((await q).data ?? []).filter(live);
 }
 
 export async function getGym(slug: string): Promise<GymDetail | null> {
@@ -74,11 +80,11 @@ export async function getGym(slug: string): Promise<GymDetail | null> {
   if (!c) {
     const card = S.gyms.find((g) => g.slug === slug);
     const d = S.gym_details[slug];
-    if (!card || !d || !visible(card)) return null;
+    if (!card || !d || !visible(card) || !live(card)) return null;
     return { ...card, ...d };
   }
   const { data: card } = await c.from("gym_cards").select("*").eq("slug", slug).maybeSingle();
-  if (!card || !visible(card)) return null;
+  if (!card || !visible(card) || !live(card)) return null;
   const [gym, prices, classes, coaches, fighters] = await Promise.all([
     c.from("gyms").select("description, phone, affiliation, founded_year").eq("id", card.id).single(),
     c.from("gym_current_prices").select("*").eq("gym_id", card.id),

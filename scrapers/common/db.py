@@ -61,6 +61,7 @@ def upsert_gym(cur, g: dict[str, Any]) -> str:
     g.setdefault("slug", slugify(g["name"], g.get("city", ""), g.get("state", "")))
     g.setdefault("styles", [])
     g.setdefault("tags", [])
+    g.setdefault("is_sample", False)  # explicit null would override the column default
     cols = [
         "slug", "name", "styles", "place_id", "address", "lat", "lng", "website", "instagram",
         "phone", "google_place_id", "google_rating", "google_reviews", "tapology_id",
@@ -70,12 +71,12 @@ def upsert_gym(cur, g: dict[str, Any]) -> str:
     conflict_key = "google_place_id" if g.get("google_place_id") else "slug"
     # only overwrite nulls; never clobber hand-verified data
     updates = ", ".join(
-        f"{c} = coalesce(gyms.{c}, excluded.{c})" for c in cols if c not in ("slug", "google_place_id")
+        f"{c} = coalesce(gyms.{c}, excluded.{c})" for c in cols if c not in ("slug", "google_place_id", "styles", "tags")
     )
     # styles/tags: union
     updates += (
-        ", styles = (select array_agg(distinct s) from unnest(gyms.styles || excluded.styles) s)"
-        ", tags = (select array_agg(distinct t) from unnest(gyms.tags || excluded.tags) t)"
+        ", styles = coalesce((select array_agg(distinct s) from unnest(gyms.styles || excluded.styles) s), '{}')"
+        ", tags = coalesce((select array_agg(distinct t) from unnest(gyms.tags || excluded.tags) t), '{}')"
     )
     cur.execute(
         f"""

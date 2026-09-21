@@ -29,5 +29,6 @@ export default async function Page({ params }: PageProps<"/gyms/[state]/[city]">
   const place = await getPlace(`${city}-${state}`);
   if (!place) notFound();
   const gyms = await getGymsByPlace(place.slug);
+  if (!gyms.length) notFound();
   return <CityPage place={place} gyms={gyms} />;
 }
