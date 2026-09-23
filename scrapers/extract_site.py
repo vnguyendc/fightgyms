@@ -122,12 +122,15 @@ def _key(u: str) -> str:
 WIDGETS = ("mindbody", "zenplanner", "glofox", "wodify", "pushpress", "gymdesk", "kicksite", "clubready", "mariana tek", "marianatek")
 
 
-def crawl(base: str) -> tuple[dict[str, str], str | None]:
+def crawl(base: str, *, provenance: dict[str, list[str]] | None = None) -> tuple[dict[str, str], str | None]:
     """Return ({url: text}, schedule_widget) for the homepage plus priority internal pages.
 
     Same-site is judged on the host *after* redirects (www.foo.com -> foo.com is common) and
     ignores www., otherwise every absolute nav link on the homepage gets dropped and we extract
-    from one page. Links are harvested from every crawled page, bounded by MAX_PAGES."""
+    from one page. Links are harvested from every crawled page, bounded by MAX_PAGES.
+
+    Optional provenance maps each original page URL to response.history URLs followed
+    by the final response URL. It never changes page keys or the two-value return."""
     pages: dict[str, str] = {}
     seen: set[str] = set()
     origin: str | None = None
@@ -151,6 +154,8 @@ def crawl(base: str) -> tuple[dict[str, str], str | None]:
             widget = widget or next((w for w in WIDGETS if w in html.lower()), None)
             text = trafilatura.extract(html, include_links=False, include_tables=True) or ""
             pages[url] = text[:PAGE_CHARS]
+            if provenance is not None:
+                provenance[url] = [str(response.url) for response in [*r.history, r]]
             for href in re.findall(r'href=["\']([^"\'#?]+)', html):
                 u = urljoin(str(r.url), href)
                 if urlparse(u).netloc.lower().removeprefix("www.") == origin and PRIORITY.search(u) and _key(u) not in seen:
@@ -241,8 +246,35 @@ def validate(out: dict, pages: dict[str, str]) -> dict:
     return out
 
 
-def process(gym: dict, dry_run: bool) -> None:
-    pages, widget = crawl(gym["website"])
+def process(gym: dict, dry_run: bool, *, shadow_report: str | Path | None = None,
+            shadow_model: str | None = None) -> None:
+    provenance: dict[str, list[str]] = {}
+    pages, widget = (crawl(gym["website"]) if shadow_report is None
+                     else crawl(gym["website"], provenance=provenance))
+    if shadow_report is not None:
+        try:
+            if __package__:
+                from . import jev_triage
+            else:
+                import jev_triage
+            # Check every page before bounding; original keys cannot attest redirected text.
+            # URL guardrails only, not DNS-rebinding/SSRF protection for the existing crawler.
+            safe_provenance = bool(pages) and all(
+                jev_triage.public_url(url) and isinstance(provenance.get(url), list)
+                and bool(provenance[url]) and all(jev_triage.public_url(source) for source in provenance[url])
+                for url in pages
+            )
+            # A detached copy: shadow recommendations never filter the extractor's pages.
+            record = {"public_content": safe_provenance,
+                      "pages": [{"url": provenance[url][-1], "text": text} for url, text in pages.items()]
+                      if safe_provenance else []}
+            row = jev_triage.evaluate(record, model=shadow_model)
+            if not safe_provenance:
+                row["reasons"] = ["unsafe_or_unknown_provenance"]
+            with Path(shadow_report).open("a", encoding="utf-8") as report:
+                report.write(json.dumps(row, allow_nan=False) + "\n")
+        except Exception:  # Shadow is advisory; even report I/O failure must not gate extraction.
+            print("  shadow_report_failed", file=sys.stderr)
     if not pages:
         print(f"  no pages for {gym['slug']}", file=sys.stderr)
         return
@@ -276,7 +308,12 @@ def main() -> None:
     ap.add_argument("--gym-slug")
     ap.add_argument("--limit", type=int, default=50)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--shadow-report", help="Opt-in Jev recommendation JSONL (never gates extraction)")
+    ap.add_argument("--shadow-limit", type=int, default=10, help="Shadow at most 1-10 gyms; extraction limit is unchanged")
+    ap.add_argument("--shadow-model", help="Pinned Jev version override; otherwise TYPESAFE_MODEL/default")
     args = ap.parse_args()
+    if args.shadow_report and not 1 <= args.shadow_limit <= 10:
+        ap.error("shadow-limit must be between 1 and 10")
     with conn() as c, c.cursor() as cur:
         if args.gym_slug:
             cur.execute("select id, slug, website from gyms where slug = %s", (args.gym_slug,))
@@ -294,10 +331,15 @@ def main() -> None:
                 (args.limit,),
             )
         gyms = cur.fetchall()
-    for g in gyms:
+    for index, g in enumerate(gyms):
         print(g["slug"], file=sys.stderr)
         try:
-            process(g, args.dry_run)
+            if args.shadow_report and index < args.shadow_limit:
+                process(g, args.dry_run, shadow_report=args.shadow_report, shadow_model=args.shadow_model)
+            else:
+                if args.shadow_report and index == args.shadow_limit:
+                    print("  shadow_limit_reached; extraction continues", file=sys.stderr)
+                process(g, args.dry_run)
         except Exception as e:  # noqa: BLE001
             print(f"  failed: {e}", file=sys.stderr)
 

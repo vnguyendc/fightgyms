@@ -40,6 +40,16 @@ local `next build` caches supabase responses in `.next/cache/fetch-cache` across
 | `/claim` | claim / suggest-a-fix form (placeholder, not wired) |
 | `/sitemap.xml`, `/robots.txt` | generated |
 
+## Jev shadow-triage pilot
+
+The optional Jev pilot evaluates saved public gym-page text and can attach a separate shadow report to the existing scraper. It recommends keeping, reviewing, or rejecting a candidate; **it never changes the extractor's inputs, writes classification decisions to Supabase, or publishes/removes a listing**.
+
+- [Setup, contract, and rollback](docs/jev-shadow-triage.md)
+- [Human-labeled evaluation and promotion gate](docs/jev-evaluation.md)
+- [Scraper commands](scrapers/README.md)
+
+The default scraper remains unchanged unless the shadow option is explicitly selected. Live evaluation requires a server-side `TYPESAFE_API_KEY`; automated tests use clearly synthetic provider fixtures and do not establish live model accuracy.
+
 ## next up
 
 - [ ] `/api/submissions` route + magic-link auth for claims
