@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
-import { SITE } from "@/lib/site";
+import { SITE, runtimePolicy } from "@/lib/site";
 
 export default function robots(): MetadataRoute.Robots {
-  return { rules: { userAgent: "*", allow: "/", disallow: ["/claim", "/api/"] }, sitemap: `${SITE.url}/sitemap.xml` };
+  // Allow crawling of noindex pages so crawlers can observe the directive.
+  return { rules: { userAgent: "*", allow: "/", disallow: ["/api/"] },
+    ...(runtimePolicy().indexable ? { sitemap: `${SITE.url}/sitemap.xml` } : {}) };
 }

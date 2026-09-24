@@ -1,21 +1,21 @@
-/**
- * Data access. Reads from Supabase when NEXT_PUBLIC_SUPABASE_URL is set,
- * otherwise from the bundled sample dataset so the app runs with zero config.
- * Sample rows (is_sample) are hidden in production unless SHOW_SAMPLE=1.
- */
+/** Read-only public directory access. Samples require explicit non-production demo mode. */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import sample from "@/data/sample.json";
+import { runtimePolicy } from "./site";
 import { LIVE_STYLES, type Event, type GymCard, type GymDetail, type Place, type Style } from "./types";
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const showSample = process.env.SHOW_SAMPLE === "1" || process.env.NODE_ENV !== "production" || !url;
-
-let client: SupabaseClient | null = null;
 function sb(): SupabaseClient | null {
-  if (!url || !key) return null;
-  if (!client) client = createClient(url, key, { auth: { persistSession: false } });
-  return client;
+  if (runtimePolicy().mode !== "live") return null;
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+}
+
+/** Do not turn permission, network, or schema failures into a successful empty listing. */
+async function checked<T>(query: PromiseLike<{ data: T | null; error: unknown }>): Promise<T | null> {
+  const result = await query;
+  if (result.error) throw new Error("Directory data is temporarily unavailable. Please try again later.");
+  return result.data;
 }
 
 type SampleData = {
@@ -25,100 +25,93 @@ type SampleData = {
   events: (Event & { place_id: string })[];
 };
 const S = sample as unknown as SampleData;
-
-const visible = (g: { is_sample: boolean }) => showSample || !g.is_sample;
-// only gyms with at least one public discipline are listed; bjj/boxing-only rows stay in the db behind the flag
+const demo = () => runtimePolicy().mode === "demo";
+const visible = (g: { is_sample: boolean; slug: string }) => demo() || (g.is_sample === false && !g.slug.startsWith("sample-"));
+// Only gyms with a public discipline are listed; other rows remain in the database.
 const live = (g: { styles: Style[] }) => g.styles.some((s) => LIVE_STYLES.includes(s));
 
-// ---------------------------------------------------------------------------
-
-/** Places that have at least one listed gym — a city page with nothing on it is a thin page, not a landing page. */
+/** Populated cities only. A place record alone is not a directory landing page. */
 export async function getPlaces(): Promise<Place[]> {
   const gyms = await getAllGyms();
-  const withGyms = new Set(gyms.map((g) => g.place_slug));
+  const withGyms = [...new Set(gyms.map((g) => g.place_slug).filter((s): s is string => !!s))];
+  if (!withGyms.length) return [];
   const c = sb();
-  if (!c) return S.places.filter((p) => withGyms.has(p.slug));
-  const { data } = await c.from("places").select("*").in("slug", [...withGyms]).order("state").order("city");
-  return data ?? [];
+  if (!c) return S.places.filter((p) => withGyms.includes(p.slug));
+  return await checked(c.from("places").select("*").in("slug", withGyms).order("state").order("city")) ?? [];
 }
 
 export async function getPlace(slug: string): Promise<Place | null> {
   const c = sb();
-  if (!c) return S.places.find((p) => p.slug === slug) ?? null;
-  const { data } = await c.from("places").select("*").eq("slug", slug).maybeSingle();
-  return data;
+  if (!c) return demo() ? S.places.find((p) => p.slug === slug) ?? null : null;
+  return checked(c.from("places").select("*").eq("slug", slug).maybeSingle());
 }
 
 export async function getGymsByPlace(placeSlug: string, style?: Style): Promise<GymCard[]> {
   const c = sb();
   let rows: GymCard[];
   if (!c) {
-    rows = S.gyms.filter((g) => g.place_slug === placeSlug);
+    rows = demo() ? S.gyms.filter((g) => g.place_slug === placeSlug) : [];
   } else {
-    let q = c.from("gym_cards").select("*").eq("place_slug", placeSlug).overlaps("styles", LIVE_STYLES);
-    if (!showSample) q = q.eq("is_sample", false);
+    let q = c.from("gym_cards").select("*").eq("place_slug", placeSlug).overlaps("styles", LIVE_STYLES).eq("is_sample", false);
     if (style) q = q.contains("styles", [style]);
-    rows = (await q).data ?? [];
+    rows = await checked(q) ?? [];
   }
-  return rows
-    .filter(visible)
-    .filter(live)
-    .filter((g) => !style || g.styles.includes(style))
-    .sort((a, b) => b.active_fighters - a.active_fighters || (b.google_reviews ?? 0) - (a.google_reviews ?? 0));
+  return rows.filter(visible).filter(live).filter((g) => !style || g.styles.includes(style))
+    .sort((a, b) => a.name.localeCompare(b.name) || a.slug.localeCompare(b.slug));
 }
 
 export async function getAllGyms(): Promise<GymCard[]> {
   const c = sb();
-  if (!c) return S.gyms.filter(visible).filter(live);
-  let q = c.from("gym_cards").select("*").overlaps("styles", LIVE_STYLES);
-  if (!showSample) q = q.eq("is_sample", false);
-  return ((await q).data ?? []).filter(live);
+  if (!c) return demo() ? S.gyms.filter(live) : [];
+  const rows: GymCard[] = await checked(c.from("gym_cards").select("*").overlaps("styles", LIVE_STYLES).eq("is_sample", false)) ?? [];
+  return rows.filter(visible).filter(live);
 }
 
 export async function getGym(slug: string): Promise<GymDetail | null> {
   const c = sb();
   if (!c) {
+    if (!demo()) return null;
     const card = S.gyms.find((g) => g.slug === slug);
     const d = S.gym_details[slug];
-    if (!card || !d || !visible(card) || !live(card)) return null;
+    if (!card || !d || !live(card)) return null;
     return { ...card, ...d };
   }
-  const { data: card } = await c.from("gym_cards").select("*").eq("slug", slug).maybeSingle();
+  const card: GymCard | null = await checked(c.from("gym_cards").select("*").eq("slug", slug).eq("is_sample", false).maybeSingle());
   if (!card || !visible(card) || !live(card)) return null;
   const [gym, prices, classes, coaches, fighters] = await Promise.all([
-    c.from("gyms").select("description, phone, affiliation, founded_year").eq("id", card.id).single(),
-    c.from("gym_current_prices").select("*").eq("gym_id", card.id),
-    c.from("classes").select("*").eq("gym_id", card.id).order("dow").order("start_time"),
-    c.from("coaches").select("*").eq("gym_id", card.id),
-    c.from("fighters").select("*").eq("gym_id", card.id).order("last_bout", { ascending: false }),
+    checked(c.from("gyms").select("description, phone, affiliation, founded_year").eq("id", card.id).single()),
+    checked(c.from("gym_current_prices").select("*").eq("gym_id", card.id)),
+    checked(c.from("classes").select("*").eq("gym_id", card.id).order("dow").order("start_time")),
+    checked(c.from("coaches").select("*").eq("gym_id", card.id)),
+    checked(c.from("fighters").select("*").eq("gym_id", card.id).order("last_bout", { ascending: false })),
   ]);
   return {
     ...card,
-    ...(gym.data ?? { description: null, phone: null, affiliation: null, founded_year: null }),
-    prices: prices.data ?? [],
-    classes: classes.data ?? [],
-    coaches: coaches.data ?? [],
-    fighters: fighters.data ?? [],
+    ...(gym ?? { description: null, phone: null, affiliation: null, founded_year: null }),
+    prices: prices ?? [], classes: classes ?? [], coaches: coaches ?? [], fighters: fighters ?? [],
   };
 }
 
 export async function getUpcomingEvents(state?: string): Promise<Event[]> {
   const c = sb();
-  if (!c) return S.events;
-  let q = c.from("events").select("*").gte("date", new Date().toISOString().slice(0, 10)).order("date");
+  const today = new Date().toISOString().slice(0, 10);
+  if (!c) return demo() ? S.events.filter((e) => e.date && e.date >= today &&
+    (!state || S.places.some((p) => p.id === e.place_id && p.state === state))) : [];
+  // Events have no is_sample column in the current schema; seed slugs are sample-*.
+  let q = c.from("events").select(state ? "*, places!inner(state)" : "*")
+    .not("slug", "like", "sample-%").gte("date", today).order("date");
   if (state) q = q.eq("places.state", state);
-  return (await q).data ?? [];
+  const rows = await checked(q) as (Event & { places?: { state: string } })[] | null;
+  return (rows ?? []).filter((e) => !e.slug.startsWith("sample-") && e.date && e.date >= today &&
+    (!state || e.places?.state === state));
 }
-
-// ---------------------------------------------------------------------------
 
 export function money(cents: number | null | undefined): string {
   if (cents == null) return "—";
-  return `$${Math.round(cents / 100)}`;
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: cents % 100 === 0 ? 0 : 2, maximumFractionDigits: 2 }).format(cents / 100);
 }
 
 export const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
 export function fmtTime(t: string): string {
   const [h, m] = t.split(":").map(Number);
   const ampm = h >= 12 ? "pm" : "am";

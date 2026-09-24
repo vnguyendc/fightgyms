@@ -37,12 +37,7 @@ export default function GymCard({ gym, rank }: { gym: GymCardT; rank?: number })
           {gym.claimed && <span className="text-accent text-xs">✓ claimed</span>}
           <p className="text-sm text-muted mt-0.5 truncate">{gym.address ?? `${gym.city}, ${gym.state}`}</p>
         </div>
-        {gym.google_rating != null && (
-          <div className="text-right shrink-0">
-            <div className="font-mono text-sm">★ {gym.google_rating.toFixed(1)}</div>
-            <div className="text-xs text-muted">{gym.google_reviews} reviews</div>
-          </div>
-        )}
+
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-sm">

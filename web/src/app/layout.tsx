@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
-import { SITE } from "@/lib/site";
+import { SITE, runtimePolicy } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -12,8 +12,8 @@ export const metadata: Metadata = {
   title: { default: `${SITE.name} — ${SITE.tagline}`, template: `%s · ${SITE.name}` },
   description: SITE.description,
   openGraph: { siteName: SITE.name, type: "website" },
-  twitter: { card: "summary_large_image", site: SITE.twitter },
-  robots: { index: true, follow: true },
+  twitter: { card: "summary" },
+  robots: { index: runtimePolicy().indexable, follow: runtimePolicy().indexable },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -29,18 +29,19 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/gyms" className="hover:text-ink">Gyms</Link>
               <Link href="/events" className="hover:text-ink">Events</Link>
               <Link href="/claim" className="rounded-md border border-line px-3 py-1.5 hover:border-accent hover:text-ink">
-                Claim your gym
+                Gym updates
               </Link>
             </nav>
           </div>
         </header>
+        {runtimePolicy().mode === "demo" && <div className="border-b border-gold/50 bg-gold/10 px-4 py-3 text-center text-sm text-gold">Demo directory — all listings are fictional samples, not real gyms.</div>}
         <main className="flex-1">{children}</main>
         <footer className="border-t border-line mt-16">
           <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-muted flex flex-wrap gap-x-6 gap-y-2 justify-between">
-            <span>© {new Date().getFullYear()} {SITE.name}. Prices and schedules are verified by hand where marked; corrections welcome.</span>
+            <span>© {new Date().getFullYear()} {SITE.name}. Confirm current prices and schedules with the gym before visiting.</span>
             <span className="flex gap-4">
               <Link href="/gyms" className="hover:text-ink">All cities</Link>
-              <Link href="/claim" className="hover:text-ink">Add or fix a gym</Link>
+              <Link href="/claim" className="hover:text-ink">Updates (not available yet)</Link>
             </span>
           </div>
         </footer>
