@@ -1,9 +1,13 @@
 import Link from "next/link";
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/site";
+import DirectoryState from "@/components/DirectoryState";
 import { getAllGyms, getPlaces } from "@/lib/data";
 
 export const revalidate = 3600;
-export const metadata: Metadata = { title: "All cities", description: "Muay thai and kickboxing gyms by city and state." };
+export async function generateMetadata() {
+  const places = await getPlaces();
+  return pageMetadata("/gyms", "Gyms by city", "Browse available Muay Thai and kickboxing gym listings by city and state.", places.length > 0);
+}
 
 export default async function GymsIndex() {
   const [places, gyms] = await Promise.all([getPlaces(), getAllGyms()]);
@@ -17,7 +21,8 @@ export default async function GymsIndex() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <h1 className="text-3xl font-semibold tracking-tight">Gyms by city</h1>
-      <p className="text-muted mt-2">{gyms.length} gyms across {counts.size} cities.</p>
+      <p className="text-muted mt-2">{gyms.length} gyms across {places.length} cities.</p>
+      {!places.length && <DirectoryState />}
       <div className="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
         {[...byState.entries()].sort().map(([state, ps]) => (
           <div key={state}>

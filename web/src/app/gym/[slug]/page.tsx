@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, FighterBadge } from "@/components/GymCard";
-import { DOW, fmtTime, getAllGyms, getGym, money } from "@/lib/data";
-import { SITE } from "@/lib/site";
-import { STYLE_LABEL, TAG_LABEL, type Price } from "@/lib/types";
+import { DOW, fmtTime, getAllGyms, getGym, getPlace, money } from "@/lib/data";
+import { SITE, cityPath, jsonLd as serializeJsonLd, pageMetadata, safeExternalUrl } from "@/lib/site";
+import { LIVE_STYLES, STYLE_LABEL, TAG_LABEL, type Price } from "@/lib/types";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -17,22 +17,16 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps<"/gym/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const g = await getGym(slug);
-  if (!g) return {};
-  const bits = [
-    g.drop_in_cents != null ? `${money(g.drop_in_cents)} drop-in` : null,
-    g.monthly_cents != null ? `${money(g.monthly_cents)}/mo` : null,
-    g.active_fighters ? `${g.active_fighters} active fighters` : null,
-  ].filter(Boolean);
-  return {
-    title: `${g.name} — ${g.city}, ${g.state}`,
-    description: `${g.name} in ${g.city}, ${g.state}: ${bits.join(", ") || g.styles.map((s) => STYLE_LABEL[s]).join(", ")}. Prices, class schedule, coaches and fighter records.`,
-    alternates: { canonical: `${SITE.url}/gym/${g.slug}` },
-  };
+  if (!g) notFound();
+  const location = [g.city, g.state].filter(Boolean).join(", ");
+  const disciplines = g.styles.filter(s => LIVE_STYLES.includes(s)).map(s => STYLE_LABEL[s]).join(" and ");
+  return pageMetadata(`/gym/${g.slug}`, `${g.name}${location ? ` — ${location}` : ""}`,
+    `${g.name}${location ? ` in ${location}` : ""}. Listed disciplines: ${disciplines}. View available gym details and confirm current classes and prices directly with the gym.`, !g.is_sample);
 }
 
 const PRICE_LABEL: Record<Price["kind"], string> = {
   drop_in: "Drop-in class",
-  monthly: "Monthly unlimited",
+  monthly: "Monthly membership",
   fighter: "Fight team rate",
   trial: "Intro / trial",
   private: "Private session",
@@ -40,7 +34,7 @@ const PRICE_LABEL: Record<Price["kind"], string> = {
 };
 
 const VERIFIED_LABEL: Record<string, string> = {
-  manual: "verified by phone",
+  manual: "manually checked",
   phone: "verified by phone",
   gym_claim: "confirmed by gym",
   website: "from gym website",
@@ -52,7 +46,9 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
   const g = await getGym(slug);
   if (!g) notFound();
 
-  const cityHref = g.place_slug ? `/gyms/${g.state?.toLowerCase()}/${g.place_slug.replace(/-[a-z]{2}$/, "")}` : "/gyms";
+  const place = g.place_slug ? await getPlace(g.place_slug) : null;
+  const cityHref = place ? cityPath(place) : "/gyms";
+  const website = safeExternalUrl(g.website);
   const byDay = new Map<number, typeof g.classes>();
   for (const c of g.classes) byDay.set(c.dow, [...(byDay.get(c.dow) ?? []), c]);
   const lastVerified = g.prices.map((p) => p.verified_at).filter(Boolean).sort().at(-1);
@@ -63,19 +59,18 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
     "@context": "https://schema.org",
     "@type": ["SportsActivityLocation", "LocalBusiness"],
     name: g.name,
-    url: g.website ?? undefined,
+    url: `${SITE.url}/gym/${g.slug}`,
+    sameAs: website,
+    mainEntityOfPage: `${SITE.url}/gym/${g.slug}`,
     telephone: g.phone ?? undefined,
     address: g.address ? { "@type": "PostalAddress", streetAddress: g.address, addressLocality: g.city, addressRegion: g.state } : undefined,
-    geo: g.lat && g.lng ? { "@type": "GeoCoordinates", latitude: g.lat, longitude: g.lng } : undefined,
-    aggregateRating: g.google_rating
-      ? { "@type": "AggregateRating", ratingValue: g.google_rating, reviewCount: g.google_reviews }
-      : undefined,
+    geo: g.lat != null && g.lng != null ? { "@type": "GeoCoordinates", latitude: g.lat, longitude: g.lng } : undefined,
     priceRange: g.drop_in_cents != null ? `${money(g.drop_in_cents)} drop-in` : undefined,
   };
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
       <nav className="text-sm text-muted mb-4">
         <Link href="/gyms" className="hover:text-ink">Gyms</Link> /{" "}
         <Link href={cityHref} className="hover:text-ink">{g.city}, {g.state}</Link> / {g.name}
@@ -109,7 +104,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
               {lastVerified && <span className="text-xs text-muted">last verified {lastVerified}</span>}
             </div>
             {g.prices.length === 0 ? (
-              <p className="mt-2 text-muted text-sm">No verified prices yet. <Link href={`/claim?gym=${g.slug}`} className="underline">Know them?</Link></p>
+              <p className="mt-2 text-muted text-sm">No prices listed yet. Contact the gym for current rates.</p>
             ) : (
               <table className="mt-3 w-full text-sm">
                 <tbody>
@@ -134,7 +129,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
           <section className="mt-10">
             <h2 className="text-xl font-semibold">Class schedule</h2>
             {g.classes.length === 0 ? (
-              <p className="mt-2 text-muted text-sm">No schedule yet. {g.website && <a href={g.website} className="underline" rel="nofollow">Check the gym's site.</a>}</p>
+              <p className="mt-2 text-muted text-sm">No schedule yet. {website && <a href={website} className="underline" rel="nofollow">Check the gym&apos;s site.</a>}</p>
             ) : (
               <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {[1, 2, 3, 4, 5, 6, 0].filter((d) => byDay.has(d)).map((d) => (
@@ -181,7 +176,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
             <section className="mt-10">
               <div className="flex items-baseline justify-between">
                 <h2 className="text-xl font-semibold">Fight team</h2>
-                <span className="text-xs text-muted">records from Tapology / Smoothcomp / promotions</span>
+                <span className="text-xs text-muted">listed records; coverage may be incomplete</span>
               </div>
               <table className="mt-3 w-full text-sm">
                 <thead className="text-xs text-muted">
@@ -211,11 +206,8 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
               <div><div className="text-xs text-muted">Drop-in</div><div className="font-mono text-xl">{money(g.drop_in_cents)}</div></div>
               <div><div className="text-xs text-muted">Monthly</div><div className="font-mono text-xl">{money(g.monthly_cents)}</div></div>
             </div>
-            {g.google_rating != null && (
-              <div className="mt-4 text-muted">★ {g.google_rating.toFixed(1)} · {g.google_reviews} Google reviews</div>
-            )}
             <div className="mt-4 space-y-1.5">
-              {g.website && <a href={g.website} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">Website ↗</a>}
+              {website && <a href={website} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">Website ↗</a>}
               {g.instagram && <a href={`https://instagram.com/${g.instagram.replace(/^@/, "")}`} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">@{g.instagram.replace(/^@/, "")}</a>}
               {g.phone && <a href={`tel:${g.phone}`} className="block underline hover:text-accent">{g.phone}</a>}
               {g.address && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(g.address)}`} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">Directions ↗</a>}
@@ -224,14 +216,16 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
           </div>
           <div className="rounded-xl border border-line p-4 text-sm">
             <div className="font-medium">{g.claimed ? "Own this gym?" : "Is this your gym?"}</div>
-            <p className="text-muted mt-1">Claim the listing to fix prices, update the schedule and add your fight team.</p>
-            <Link href={`/claim?gym=${g.slug}`} className="mt-3 inline-block rounded-md bg-accent px-3 py-1.5 text-white font-medium">Claim free →</Link>
+            <p className="text-muted mt-1">Gym claims and submissions are not available yet.</p>
+            <Link href={`/claim?gym=${g.slug}`} className="mt-3 inline-block underline">Updates status →</Link>
           </div>
-          <div className="rounded-xl border border-line p-4 text-sm">
-            <div className="font-medium">Something wrong?</div>
-            <p className="text-muted mt-1">Train here? Tell us what changed and we'll verify it.</p>
-            <Link href={`/claim?gym=${g.slug}&fix=1`} className="mt-3 inline-block underline">Suggest a fix</Link>
-          </div>
+          {place && <div className="rounded-xl border border-line p-4 text-sm">
+            <div className="font-medium">More gyms in {place.city}</div>
+            <Link href={cityHref} className="mt-2 block underline">Browse all listed gyms</Link>
+            {g.styles.filter(s => LIVE_STYLES.includes(s)).map(s => (
+              <Link key={s} href={cityPath(place, s)} className="mt-2 block underline">{STYLE_LABEL[s]} in {place.city}</Link>
+            ))}
+          </div>}
         </aside>
       </div>
     </div>

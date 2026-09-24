@@ -1,17 +1,21 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/site";
+import DirectoryState from "@/components/DirectoryState";
 import { getUpcomingEvents } from "@/lib/data";
 
 export const revalidate = 3600;
-export const metadata: Metadata = { title: "Upcoming fights", description: "Upcoming muay thai and kickboxing cards, and which ones take amateurs." };
+export async function generateMetadata() {
+  const events = await getUpcomingEvents();
+  return pageMetadata("/events", "Upcoming fights", "Listed upcoming combat sports events. Check event organizers for current dates, eligibility and registration details.", events.length > 0);
+}
 
 export default async function Events() {
   const events = await getUpcomingEvents();
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <h1 className="text-3xl font-semibold tracking-tight">Upcoming fights</h1>
-      <p className="text-muted mt-2">Sanctioned cards. Amateur-friendly promotions are marked.</p>
+      <p className="text-muted mt-2">Upcoming event listings. Confirm dates and entry requirements with the organizer.</p>
       {events.length === 0 ? (
-        <p className="mt-8 text-muted">Nothing listed yet.</p>
+        <DirectoryState subject="upcoming events" />
       ) : (
         <table className="mt-8 w-full text-sm">
           <thead className="text-xs text-muted"><tr><th className="text-left font-normal py-1">Date</th><th className="text-left font-normal">Event</th><th className="text-left font-normal">Promotion</th><th className="text-left font-normal">Venue</th><th className="text-left font-normal">Amateurs</th></tr></thead>
