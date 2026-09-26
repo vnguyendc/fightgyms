@@ -24,11 +24,11 @@ The smoke command starts/stops a local production server on port 3108 (`SMOKE_PO
 
 ## Data contract / publishing
 
-Existing tables/views only: `gym_cards`, `places`, `gyms`, `gym_current_prices`, `classes`, `coaches`, `fighters`, `events`. No schema change or write path is introduced. Keep `LIVE_STYLES` at `muay_thai` and `kickboxing`.
+Reads use `gym_cards` (migration 0003 adds `trial_cents` and `class_count`; rows without them render as missing data, not errors), `places`, `gyms`, `gym_current_prices`, `classes`, `coaches`, `fighters`, `events`. The only write path is `POST /api/submissions`, which inserts `status='pending'` rows into `submissions` through the anon key, never updates directory tables, and returns 503 outside the live directory. Keep `LIVE_STYLES` at `muay_thai` and `kickboxing`.
 
 Publish real active gym rows with `is_sample=false`, stable slugs, public discipline(s), and matching place records. Reserve the `sample-` slug prefix for fictional fixtures. Existing event seeds have no `is_sample` column, so `sample-*` event slugs are explicitly excluded. Do not put fictional events under ordinary slugs. Google rating fields remain stored but are not displayed, ranked on, or emitted as aggregate ratings.
 
-City/style URLs must contain at least one matching gym; missing/empty routes return 404. `/events` is noindex and excluded from the sitemap when empty. `/claim` is always noindex and has no submission form until the unimplemented claim backend is available; this is independent of Jev sign-ups. Backend read errors throw instead of becoming empty successful listings; the error boundary has a noindex retry state. Build-time read failures deliberately fail a configured build.
+City/style URLs must contain at least one matching gym; missing/empty routes return 404. `/events` is noindex and excluded from the sitemap when empty. `/claim` is always noindex and collects nothing itself; it only shows the thank-you and error states for corrections filed from a gym page. `/search` and `/api/search-index` expose gym and city names only; `/search` is noindex and never in the sitemap. Backend read errors throw instead of becoming empty successful listings; the error boundary has a noindex retry state. Build-time read failures deliberately fail a configured build.
 
 ## Verification record
 

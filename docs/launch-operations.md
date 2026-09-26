@@ -9,6 +9,7 @@ The launch slice does not depend on Jev. It provides safe SEO behavior and a pub
 - Configure the Vercel project from repository `vnguyendc/fightgyms`, production branch `master`, root directory `web`, using Node 22.
 - Set `NEXT_PUBLIC_SITE_URL=https://findfightgyms.com`, `NEXT_PUBLIC_SUPABASE_URL`, and the **public anon** `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Never expose a service-role key to the browser.
 - Leave `SHOW_SAMPLE` unset/`0`. Verify the existing schema and public-read RLS with actual data before publishing.
+- Apply `supabase/migrations/0003_gym_cards_v3.sql` (`cd scrapers && .venv/bin/python run_sql.py ../supabase/migrations/0003_gym_cards_v3.sql`) before deploying a build that reads `trial_cents`/`class_count`. Older rows render as missing data, not errors. Rollback is re-running the view definition in `0002_photos.sql`; never drop data.
 - Attach the purchased domain and verify HTTPS and the preferred apex/www redirect. No DNS or domain change is implied by this document.
 - Without a configured real backend, production intentionally shows an unavailable state, noindex, no fictional detail routes, and an empty sitemap. That state is **not an SEO launch**.
 
@@ -68,6 +69,7 @@ There is no guarantee of rankings or traffic merely from deploying a sitemap. No
 
 - Python: `.venv/bin/python -m unittest discover -s scrapers/tests -v`.
 - Web: `cd web && npm test && npm run typecheck && npm run lint && npm run build && npm run test:smoke` (smoke expects an unconfigured production build; do not use it as live-data proof).
+- Corrections: `POST /api/submissions` writes `status='pending'` rows only. Review them in `submissions` and set `status` to `approved` or `rejected` by hand; approved values are entered through the normal scraper/manual paths with a `source_id`, never copied blindly.
 - A real public Kaizen MMA Fairfax source was captured and accepted into the local queue, then dry-run successfully with zero database inserts. This is candidate-path verification, not confirmation the gym is absent from the existing database or published on the site.
 - Stop a discovery schedule through Hermes cron controls. Keep queued evidence for audit; do not delete published rows as a rollback shortcut.
 
