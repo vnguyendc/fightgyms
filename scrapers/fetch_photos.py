@@ -49,6 +49,7 @@ MAX_BYTES = 10 * 1024 * 1024
 GALLERY = re.compile(r"gallery|photos|facility|facilities|tour|our-gym|the-gym", re.I)
 NOISE = re.compile(r"logo|icon|sprite|favicon|badge|pixel|tracking|avatar|placeholder|spacer|blank\.|\.svg($|\?)|\.gif($|\?)", re.I)
 KEEP = {"gym_space", "training", "team"}
+LIVE_STYLES = ["muay_thai", "kickboxing"]  # mirror of web/src/lib/types.ts LIVE_STYLES; public gyms go first
 PRIMARY_ORDER = ["gym_space", "training", "team"]  # a portrait never leads a listing
 
 CLASSIFY_TOOL = {
@@ -346,6 +347,7 @@ def main() -> None:
     ap.add_argument("--url", help="run against any site; implies --dry-run")
     ap.add_argument("--limit", type=int, default=50)
     ap.add_argument("--refresh", action="store_true", help="include gyms that already have photos")
+    ap.add_argument("--public-only", action="store_true", help="only gyms with a live discipline (listed on the site)")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
     dry = args.dry_run or bool(args.url)
@@ -360,16 +362,17 @@ def main() -> None:
                 cur.execute(
                     """
                     select g.id, g.slug, g.name, g.website from gyms g
-                    where g.website is not null and g.is_active
+                    where g.website is not null and g.is_active and not g.is_sample
+                      and (%s or g.styles && %s::text[])
                       and (%s or not exists (select 1 from gym_photos p where p.gym_id = g.id and p.is_active))
                       -- skip sites attempted in the last 30 days, even if they yielded nothing
                       and not exists (
                         select 1 from sources s where s.kind = 'website' and s.url = g.website
                           and s.raw ? 'candidates' and s.fetched_at > now() - interval '30 days')
-                    order by g.created_at
+                    order by (g.styles && %s::text[]) desc, g.created_at
                     limit %s
                     """,
-                    (args.refresh, args.limit),
+                    (not args.public_only, LIVE_STYLES, args.refresh, LIVE_STYLES, args.limit),
                 )
             gyms = cur.fetchall()
 
