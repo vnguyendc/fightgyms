@@ -53,6 +53,10 @@ test("populated routes have precise self canonicals and truthful metadata; empty
   assert.ok(!urls.some(url => /kickboxing$|\/events$|\/claim$|\/search$/.test(url)));
   assert.equal(robots().sitemap, "https://findfightgyms.com/sitemap.xml");
   const html = renderToStaticMarkup(await home.default());
+  assert.match(html, /1 gym in 1 city across VA\./);
+  assert.match(html, /Most complete listings/);
+  assert.match(html, /name="q"/);
+  assert.doesNotMatch(html, /Explore the directory|listed alphabetically/);
   assert.match(html, /href="\/gyms\/va\/arlington\/muay-thai"/);
   assert.doesNotMatch(html, /href="\/gyms\/va\/arlington\/kickboxing"/);
 });

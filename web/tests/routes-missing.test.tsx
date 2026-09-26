@@ -26,6 +26,7 @@ test("unconfigured directory pages have self canonicals, noindex, and explicit u
     assert.deepEqual(metadata.robots, { index: false, follow: false });
     const html = renderToStaticMarkup(await route.default());
     assert.match(html, /Directory temporarily unavailable/);
+    assert.doesNotMatch(html, / cities across /);
     assert.doesNotMatch(html, /Siam Strike|Sample Arena|verified drop-in|Every number|Tapology|most active fighters/);
   }
 });
