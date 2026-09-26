@@ -2,7 +2,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import sample from "@/data/sample.json";
 import { runtimePolicy } from "./site";
-import { LIVE_STYLES, type Event, type GymCard, type GymDetail, type Place, type Style } from "./types";
+import { LIVE_STYLES, type Event, type GymCard, type GymDetail, type Photo, type Place, type Style } from "./types";
 
 function sb(): SupabaseClient | null {
   if (runtimePolicy().mode !== "live") return null;
@@ -78,17 +78,20 @@ export async function getGym(slug: string): Promise<GymDetail | null> {
   }
   const card: GymCard | null = await checked(c.from("gym_cards").select("*").eq("slug", slug).eq("is_sample", false).maybeSingle());
   if (!card || !visible(card) || !live(card)) return null;
-  const [gym, prices, classes, coaches, fighters] = await Promise.all([
+  const [gym, prices, classes, coaches, fighters, photos] = await Promise.all([
     checked(c.from("gyms").select("description, phone, affiliation, founded_year").eq("id", card.id).single()),
     checked(c.from("gym_current_prices").select("*").eq("gym_id", card.id)),
     checked(c.from("classes").select("*").eq("gym_id", card.id).order("dow").order("start_time")),
     checked(c.from("coaches").select("*").eq("gym_id", card.id)),
     checked(c.from("fighters").select("*").eq("gym_id", card.id).order("last_bout", { ascending: false })),
+    checked(c.from("gym_photos").select("storage_path, width, height, alt, credit").eq("gym_id", card.id)
+      .eq("is_active", true).order("is_primary", { ascending: false }).order("sort_order")),
   ]);
   return {
     ...card,
     ...(gym ?? { description: null, phone: null, affiliation: null, founded_year: null }),
     prices: prices ?? [], classes: classes ?? [], coaches: coaches ?? [], fighters: fighters ?? [],
+    photos: (photos as Photo[] | null) ?? [],
   };
 }
 
@@ -104,6 +107,11 @@ export async function getUpcomingEvents(state?: string): Promise<Event[]> {
   const rows = await checked(q) as (Event & { places?: { state: string } })[] | null;
   return (rows ?? []).filter((e) => !e.slug.startsWith("sample-") && e.date && e.date >= today &&
     (!state || e.places?.state === state));
+}
+
+/** Public URL for a photo. Sample data uses site-relative paths under /public. */
+export function photoUrl(path: string): string {
+  return path.startsWith("/") ? path : `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/gym-photos/${path}`;
 }
 
 export function money(cents: number | null | undefined): string {

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, FighterBadge } from "@/components/GymCard";
-import { DOW, fmtTime, getAllGyms, getGym, getPlace, money } from "@/lib/data";
+import { GymPhoto } from "@/components/GymPhoto";
+import { DOW, fmtTime, getAllGyms, getGym, getPlace, money, photoUrl } from "@/lib/data";
 import { SITE, cityPath, jsonLd as serializeJsonLd, pageMetadata, safeExternalUrl } from "@/lib/site";
 import { LIVE_STYLES, STYLE_LABEL, TAG_LABEL, type Price } from "@/lib/types";
 
@@ -20,8 +21,12 @@ export async function generateMetadata({ params }: PageProps<"/gym/[slug]">): Pr
   if (!g) notFound();
   const location = [g.city, g.state].filter(Boolean).join(", ");
   const disciplines = g.styles.filter(s => LIVE_STYLES.includes(s)).map(s => STYLE_LABEL[s]).join(" and ");
-  return pageMetadata(`/gym/${g.slug}`, `${g.name}${location ? ` — ${location}` : ""}`,
+  const meta = pageMetadata(`/gym/${g.slug}`, `${g.name}${location ? ` — ${location}` : ""}`,
     `${g.name}${location ? ` in ${location}` : ""}. Listed disciplines: ${disciplines}. View available gym details and confirm current classes and prices directly with the gym.`, !g.is_sample);
+  const photo = g.photos[0];
+  if (!photo) return meta;
+  const image = { url: new URL(photoUrl(photo.storage_path), SITE.url).href, width: photo.width ?? undefined, height: photo.height ?? undefined, alt: photo.alt ?? g.name };
+  return { ...meta, openGraph: { ...meta.openGraph, images: [image] } };
 }
 
 const PRICE_LABEL: Record<Price["kind"], string> = {
@@ -59,6 +64,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
     "@context": "https://schema.org",
     "@type": ["SportsActivityLocation", "LocalBusiness"],
     name: g.name,
+    image: g.photos.length ? g.photos.map((p) => new URL(photoUrl(p.storage_path), SITE.url).href) : undefined,
     url: `${SITE.url}/gym/${g.slug}`,
     sameAs: website,
     mainEntityOfPage: `${SITE.url}/gym/${g.slug}`,
@@ -79,6 +85,26 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
       {g.is_sample && (
         <div className="mb-4 rounded-md border border-gold/50 bg-gold/10 px-3 py-2 text-sm text-gold">
           Sample listing — fictional gym used for development.
+        </div>
+      )}
+
+      {g.photos.length > 0 && (
+        <div className="mb-8">
+          <div className="relative h-56 sm:h-72 lg:h-[420px] overflow-hidden rounded-xl border border-line bg-panel">
+            <GymPhoto path={g.photos[0].storage_path} alt={g.photos[0].alt ?? g.name} sizes="(min-width: 1152px) 1152px, 100vw" priority />
+          </div>
+          {g.photos.length > 1 && (
+            <div className="mt-2 grid grid-cols-5 gap-2">
+              {g.photos.slice(1, 6).map((p) => (
+                <div key={p.storage_path} className="relative aspect-video overflow-hidden rounded-md border border-line bg-panel">
+                  <GymPhoto path={p.storage_path} alt={p.alt ?? g.name} sizes="(min-width: 1152px) 220px, 20vw" />
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="mt-1.5 text-xs text-muted">
+            {g.photos.some((p) => p.credit === "gym_claim") ? "Photos provided by the gym." : "Photos from the gym\u2019s website."}
+          </p>
         </div>
       )}
 

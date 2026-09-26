@@ -5,8 +5,8 @@ real prices, real schedules, and which gyms actually produce fighters.
 
 ```
 web/        next.js 16 app router, tailwind v4, supabase-js. ISR pages for pSEO.
-supabase/   migrations/0001_init.sql (schema, RLS, views) + seed.sql (fictional demo gyms)
-scrapers/   python: google places seed, LLM site extraction. see scrapers/README.md
+supabase/   migrations/ (0001 schema, RLS, views; 0002 photos + storage bucket) + seed.sql (fictional demo gyms)
+scrapers/   python: google places seed, LLM site extraction, website photos. see scrapers/README.md
 ```
 
 ## run it
@@ -21,7 +21,7 @@ See [launch and discovery operations](docs/launch-operations.md) for the domain,
 
 ## wire supabase
 
-1. create a project, run `supabase/migrations/0001_init.sql` — no psql needed: `cd scrapers && python run_sql.py ../supabase/migrations/0001_init.sql`
+1. create a project, run `supabase/migrations/*.sql` in order — no psql needed: `cd scrapers && python run_sql.py ../supabase/migrations/0001_init.sql` (then `0002_photos.sql`)
 2. optionally `supabase/seed.sql` for the demo rows (they're flagged `is_sample` and hidden in prod)
 3. configure `NEXT_PUBLIC_SITE_URL=https://findfightgyms.com`, `NEXT_PUBLIC_SUPABASE_URL`, and the public `NEXT_PUBLIC_SUPABASE_ANON_KEY` in Vercel or a gitignored `web/.env.local`; never expose a service-role key
 4. `scrapers/.env` needs `DATABASE_URL` (use the **session pooler**, the direct host is IPv6-only), `GOOGLE_PLACES_KEY`, `ANTHROPIC_API_KEY` — see `scrapers/README.md`
@@ -37,7 +37,7 @@ local `next build` caches supabase responses in `.next/cache/fetch-cache` across
 | `/gyms` | all cities by state |
 | `/gyms/[state]/[city]` | city listing, ranked by active fighters |
 | `/gyms/[state]/[city]/[style]` | discipline filter (muay-thai, kickboxing; others gated by `LIVE_STYLES`) |
-| `/gym/[slug]` | profile: prices w/ verification tier, schedule, coaches, fight team, JSON-LD |
+| `/gym/[slug]` | profile: photos, prices w/ verification tier, schedule, coaches, fight team, JSON-LD |
 | `/events` | upcoming cards |
 | `/claim` | claim / suggest-a-fix form (placeholder, not wired) |
 | `/sitemap.xml`, `/robots.txt` | generated |
@@ -54,7 +54,7 @@ The default scraper remains unchanged unless the shadow option is explicitly sel
 
 ## next up
 
-- [ ] `/api/submissions` route + magic-link auth for claims
+- [ ] `/api/submissions` route + magic-link auth for claims (then photo upload on the claim page; bucket policy is in 0002)
 - [ ] `scrapers/enrich_tapology.py` → fighters table
 - [ ] schedules behind mindbody / zenplanner / gymdesk widgets (detected + stored on `sources`, not extracted — needs a headless fetch or the widget's own endpoint)
 - [ ] `/gyms/[state]/[city]/drop-in`, `/beginner`, `/fighter-gyms` templates

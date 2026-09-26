@@ -90,7 +90,8 @@
             "drop_in_cents": 3000,
             "monthly_cents": 17900,
             "active_fighters": 3,
-            "pro_fighters": 1
+            "pro_fighters": 1,
+            "photo_path": "/sample/siam-strike-1.webp"
         },
         {
             "id": "a762b853-4dce-428a-accf-42ee79acee3e",
@@ -119,7 +120,8 @@
             "drop_in_cents": 2500,
             "monthly_cents": 15900,
             "active_fighters": 0,
-            "pro_fighters": 0
+            "pro_fighters": 0,
+            "photo_path": "/sample/eight-limbs-1.webp"
         },
         {
             "id": "36967e6b-a494-420d-b4c5-1fdc6c9d24ca",
@@ -148,7 +150,8 @@
             "drop_in_cents": 2000,
             "monthly_cents": 13900,
             "active_fighters": 0,
-            "pro_fighters": 0
+            "pro_fighters": 0,
+            "photo_path": null
         },
         {
             "id": "1fb96bbd-8252-4895-a738-4fecb5cf7c8b",
@@ -176,7 +179,8 @@
             "drop_in_cents": 2500,
             "monthly_cents": 16500,
             "active_fighters": 1,
-            "pro_fighters": 0
+            "pro_fighters": 0,
+            "photo_path": null
         },
         {
             "id": "8e400b03-b16e-463e-9fa2-fe9c2f8b65e8",
@@ -206,7 +210,8 @@
             "drop_in_cents": 3500,
             "monthly_cents": 21900,
             "active_fighters": 3,
-            "pro_fighters": 1
+            "pro_fighters": 1,
+            "photo_path": "/sample/capital-fight-lab-1.webp"
         },
         {
             "id": "acb9cd5c-6629-431b-8f08-0ea9550585b7",
@@ -238,7 +243,8 @@
             "drop_in_cents": 3000,
             "monthly_cents": 18900,
             "active_fighters": 2,
-            "pro_fighters": 1
+            "pro_fighters": 1,
+            "photo_path": null
         }
     ],
     "gym_details": {
@@ -444,6 +450,29 @@
                     "source_id": null,
                     "updated_at": "2026-09-20T21:19:35.045347+00:00"
                 }
+            ],
+            "photos": [
+                {
+                    "storage_path": "/sample/siam-strike-1.webp",
+                    "width": 1200,
+                    "height": 675,
+                    "alt": "Siam Strike Muay Thai (sample photo)",
+                    "credit": "website"
+                },
+                {
+                    "storage_path": "/sample/siam-strike-2.webp",
+                    "width": 1200,
+                    "height": 675,
+                    "alt": "Siam Strike Muay Thai (sample photo)",
+                    "credit": "website"
+                },
+                {
+                    "storage_path": "/sample/siam-strike-3.webp",
+                    "width": 1200,
+                    "height": 675,
+                    "alt": "Siam Strike Muay Thai (sample photo)",
+                    "credit": "website"
+                }
             ]
         },
         "sample-capital-fight-lab-washington-dc": {
@@ -545,6 +574,22 @@
                     "source_id": null,
                     "updated_at": "2026-09-20T21:19:35.045347+00:00"
                 }
+            ],
+            "photos": [
+                {
+                    "storage_path": "/sample/capital-fight-lab-1.webp",
+                    "width": 1200,
+                    "height": 675,
+                    "alt": "Capital Fight Lab (sample photo)",
+                    "credit": "website"
+                },
+                {
+                    "storage_path": "/sample/capital-fight-lab-2.webp",
+                    "width": 1200,
+                    "height": 675,
+                    "alt": "Capital Fight Lab (sample photo)",
+                    "credit": "website"
+                }
             ]
         },
         "sample-eight-limbs-alexandria-va": {
@@ -636,7 +681,16 @@
                 }
             ],
             "coaches": [],
-            "fighters": []
+            "fighters": [],
+            "photos": [
+                {
+                    "storage_path": "/sample/eight-limbs-1.webp",
+                    "width": 1200,
+                    "height": 675,
+                    "alt": "Eight Limbs Alexandria (sample photo)",
+                    "credit": "website"
+                }
+            ]
         },
         "sample-nova-kickboxing-fairfax-va": {
             "description": "Dutch-style kickboxing with a muay thai clinch class twice a week.",
@@ -670,7 +724,8 @@
             ],
             "classes": [],
             "coaches": [],
-            "fighters": []
+            "fighters": [],
+            "photos": []
         },
         "sample-vienna-muay-thai-vienna-va": {
             "description": "Small Sitmonchai-affiliated gym. Two Thai trainers, strong on fundamentals.",
@@ -735,7 +790,8 @@
                     "source_id": null,
                     "updated_at": "2026-09-20T21:19:35.045347+00:00"
                 }
-            ]
+            ],
+            "photos": []
         },
         "sample-silver-spring-fight-club-silver-spring-md": {
             "description": "Fight-team-first MMA gym. Muay thai program feeds the amateur MMA roster.",
@@ -806,7 +862,8 @@
                     "source_id": null,
                     "updated_at": "2026-09-20T21:19:35.045347+00:00"
                 }
-            ]
+            ],
+            "photos": []
         }
     },
     "events": [

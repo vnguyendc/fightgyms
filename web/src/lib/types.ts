@@ -60,6 +60,15 @@ export interface Place {
   population: number | null;
 }
 
+export interface Photo {
+  /** path inside the gym-photos bucket, or a site-relative path for sample data */
+  storage_path: string;
+  width: number | null;
+  height: number | null;
+  alt: string | null;
+  credit: string | null; // website | gym_claim
+}
+
 export interface GymCard {
   id: string;
   slug: string;
@@ -82,6 +91,7 @@ export interface GymCard {
   monthly_cents: number | null;
   active_fighters: number;
   pro_fighters: number;
+  photo_path: string | null;
 }
 
 export interface Price {
@@ -133,6 +143,7 @@ export interface GymDetail extends GymCard {
   classes: ClassRow[];
   coaches: Coach[];
   fighters: Fighter[];
+  photos: Photo[];
 }
 
 export interface Event {
