@@ -11,7 +11,7 @@ Pipeline per gym:
   1. fetch homepage + one gallery/photos/facility/tour page
   2. collect og:image, twitter:image, <img>/<source> (largest srcset entry), lazy-load attrs
   3. skip logos/icons/svg by url; same-origin first; download; drop < MIN_WIDTH px or extreme aspect; dedupe by hash
-  4. Claude vision classifies each candidate; keep gym_space / training / people
+  4. Claude vision classifies each candidate; keep gym_space / training / team (portraits, logos, stock dropped)
   5. resize to MAX_EDGE, webp, upload to storage bucket gym-photos under <gym_id>/<hash>.webp
   6. insert gym_photos rows (credit=website) with a sources row holding every candidate + verdict
 Photos credited gym_claim are never touched.
@@ -48,7 +48,8 @@ MAX_KEEP = 6
 MAX_BYTES = 10 * 1024 * 1024
 GALLERY = re.compile(r"gallery|photos|facility|facilities|tour|our-gym|the-gym", re.I)
 NOISE = re.compile(r"logo|icon|sprite|favicon|badge|pixel|tracking|avatar|placeholder|spacer|blank\.|\.svg($|\?)|\.gif($|\?)", re.I)
-KEEP = {"gym_space", "training", "people"}
+KEEP = {"gym_space", "training", "team"}
+PRIMARY_ORDER = ["gym_space", "training", "team"]  # a portrait never leads a listing
 
 CLASSIFY_TOOL = {
     "name": "classify_photo",
@@ -59,11 +60,12 @@ CLASSIFY_TOOL = {
         "required": ["category", "alt"],
         "properties": {
             "category": {
-                "enum": ["gym_space", "training", "people", "logo_graphic", "stock", "other"],
+                "enum": ["gym_space", "training", "team", "portrait", "logo_graphic", "stock", "other"],
                 "description": (
                     "gym_space: interior/exterior of the actual gym (ring, mats, bags, cage). "
                     "training: people training or sparring in a gym. "
-                    "people: coach/fighter portraits or team photos. "
+                    "team: coaches, fighters or a group photographed inside the gym or in fight gear. "
+                    "portrait: headshot, selfie or testimonial photo of a person with no gym context. "
                     "logo_graphic: logo, text banner, promo graphic, screenshot, flyer. "
                     "stock: generic stock photography not clearly of this gym. "
                     "other: anything else (merch, food, unrelated)."
@@ -312,6 +314,7 @@ def process_site(website: str, gym_name: str = "") -> tuple[list[dict], list[dic
             else:
                 v["dropped"] = "category" if cls.get("category") not in KEEP else "max_keep"
             verdicts.append(v)
+    kept.sort(key=lambda k: PRIMARY_ORDER.index(k["category"]))
     return kept, verdicts, pages
 
 
@@ -359,6 +362,10 @@ def main() -> None:
                     select g.id, g.slug, g.name, g.website from gyms g
                     where g.website is not null and g.is_active
                       and (%s or not exists (select 1 from gym_photos p where p.gym_id = g.id and p.is_active))
+                      -- skip sites attempted in the last 30 days, even if they yielded nothing
+                      and not exists (
+                        select 1 from sources s where s.kind = 'website' and s.url = g.website
+                          and s.raw ? 'candidates' and s.fetched_at > now() - interval '30 days')
                     order by g.created_at
                     limit %s
                     """,
@@ -375,13 +382,13 @@ def main() -> None:
         print(g["slug"], file=sys.stderr)
         try:
             kept, verdicts, pages = process_site(g["website"], g["name"])
-        except Exception as e:  # noqa: BLE001
-            print(f"  failed: {e}", file=sys.stderr)
+            if dry:
+                print(json.dumps({"pages": pages, "kept": [k["url"] for k in kept], "candidates": verdicts}, indent=2))
+                continue
+            n = write_photos(g["id"], g["website"], kept, verdicts, pages)
+        except Exception as e:  # noqa: BLE001 — one bad site or upload must not stop the batch
+            print(f"  failed: {type(e).__name__}: {e}", file=sys.stderr)
             continue
-        if dry:
-            print(json.dumps({"pages": pages, "kept": [k["url"] for k in kept], "candidates": verdicts}, indent=2))
-            continue
-        n = write_photos(g["id"], g["website"], kept, verdicts, pages)
         print(f"  {len(verdicts)} candidates -> {len(kept)} kept, {n} new", file=sys.stderr)
 
 
