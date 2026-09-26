@@ -1,4 +1,5 @@
 import type { Metadata, MetadataRoute } from "next";
+import { allGymsPath, pageCount } from "./listing";
 import { LIVE_STYLES, STYLE_SLUG, type GymCard, type Place, type Style } from "./types";
 
 const DEFAULT_ORIGIN = "https://findfightgyms.com";
@@ -51,6 +52,7 @@ export function directorySitemap(places: Place[], gyms: GymCard[], indexable: bo
   const paths = new Set<string>();
   if (publicGyms.length) paths.add("");
   if (populatedPlaces.length) paths.add("/gyms");
+  if (publicGyms.length) for (let page = 1; page <= pageCount(publicGyms.length); page++) paths.add(allGymsPath(page));
   for (const place of populatedPlaces) {
     const local = publicGyms.filter(g => g.place_slug === place.slug);
     if (!local.length) continue;

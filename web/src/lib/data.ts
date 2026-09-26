@@ -1,6 +1,7 @@
 /** Read-only public directory access. Samples require explicit non-production demo mode. */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import sample from "@/data/sample.json";
+import { pageCount, sortByName } from "./listing";
 import { runtimePolicy } from "./site";
 import { LIVE_STYLES, type Event, type GymCard, type GymDetail, type Photo, type Place, type Style } from "./types";
 
@@ -107,6 +108,13 @@ export async function getUpcomingEvents(state?: string): Promise<Event[]> {
   const rows = await checked(q) as (Event & { places?: { state: string } })[] | null;
   return (rows ?? []).filter((e) => !e.slug.startsWith("sample-") && e.date && e.date >= today &&
     (!state || e.places?.state === state));
+}
+
+/** The full public listing, alphabetical, plus the page count for /gyms/all. */
+export async function getAllGymsListing(): Promise<{ gyms: GymCard[]; cities: number; pages: number }> {
+  const gyms = sortByName(await getAllGyms());
+  const cities = new Set(gyms.map((g) => g.place_slug).filter(Boolean)).size;
+  return { gyms, cities, pages: pageCount(gyms.length) };
 }
 
 /** Public URL for a photo. Sample data uses site-relative paths under /public. */

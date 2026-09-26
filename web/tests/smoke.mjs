@@ -30,7 +30,7 @@ try {
     server.once("error", error => { clearTimeout(timeout); reject(error); });
     server.once("exit", () => { clearTimeout(timeout); reject(new Error(`Server exited early: ${logs}`)); });
   });
-  for (const path of ["/", "/gyms", "/events", "/claim?gym=sample-siam-strike-arlington-va"]) {
+  for (const path of ["/", "/gyms", "/gyms/all", "/events", "/claim?gym=sample-siam-strike-arlington-va"]) {
     const { status, html } = await request(path);
     assert.equal(status, 200, path);
     assert.match(html, /<meta name="robots" content="noindex, nofollow"/);
@@ -40,7 +40,7 @@ try {
     assert.match(html, path.startsWith("/claim") ? /not available yet/ : /Directory temporarily unavailable/);
     console.log(`PASS ${status} ${path}: self canonical, noindex, honest state`);
   }
-  for (const path of ["/gym/sample-siam-strike-arlington-va", "/gyms/va/arlington", "/gyms/va/arlington/muay-thai"]) {
+  for (const path of ["/gym/sample-siam-strike-arlington-va", "/gyms/va/arlington", "/gyms/va/arlington/muay-thai", "/gyms/all/page/2"]) {
     const { status, html } = await request(path);
     assert.equal(status, 404, path);
     assert.match(html, /noindex/);

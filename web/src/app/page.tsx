@@ -48,7 +48,7 @@ export default async function Home() {
       <section className="py-8">
         <div className="flex items-baseline justify-between mb-4">
           <h2 className="text-xl font-semibold">Explore the directory</h2>
-          <span className="text-sm text-muted">listed alphabetically</span>
+          {gyms.length > 0 && <Link href="/gyms/all" className="text-sm text-muted hover:text-ink">all {gyms.length} gyms →</Link>}
         </div>
         {!gyms.length && <DirectoryState />}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
