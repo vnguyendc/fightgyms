@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { GymPhoto, PhotoFallback } from "@/components/GymPhoto";
-import { money } from "@/lib/format";
-import { STYLE_LABEL, TAG_LABEL, type GymCard as GymCardT } from "@/lib/types";
+import { miles, money } from "@/lib/format";
+import { hasSchedule } from "@/lib/geo";
+import { STYLE_LABEL, TAG_LABEL, type GymCard as GymCardT, type Tag } from "@/lib/types";
 
 export function Badge({ children, tone = "line" }: { children: React.ReactNode; tone?: "line" | "accent" | "gold" }) {
   const cls =
@@ -23,7 +24,21 @@ export function FighterBadge({ active, pro }: { active: number; pro: number }) {
   );
 }
 
-export default function GymCard({ gym, rank }: { gym: GymCardT; rank?: number }) {
+/** The first price a first-time visitor cares about: to try, then to drop in, then to join. Null when none is listed. */
+export function costLine(gym: Pick<GymCardT, "trial_cents" | "drop_in_cents" | "monthly_cents">): string | null {
+  if (gym.trial_cents != null) return `Trial ${money(gym.trial_cents)}`;
+  if (gym.drop_in_cents != null) return `Drop-in ${money(gym.drop_in_cents)}`;
+  if (gym.monthly_cents != null) return `Monthly ${money(gym.monthly_cents)}/mo`;
+  return null;
+}
+
+/** Beginner friendly leads; other tags keep their stored order. */
+export function orderedTags(tags: Tag[]): Tag[] {
+  return [...tags].sort((a, b) => Number(b === "beginner_friendly") - Number(a === "beginner_friendly"));
+}
+
+export default function GymCard({ gym, rank, distanceMi }: { gym: GymCardT; rank?: number; distanceMi?: number | null }) {
+  const cost = costLine(gym);
   return (
     <Link
       href={`/gym/${gym.slug}`}
@@ -35,39 +50,33 @@ export default function GymCard({ gym, rank }: { gym: GymCardT; rank?: number })
         ) : (
           <PhotoFallback styles={gym.styles} />
         )}
+        {distanceMi != null && (
+          <span className="absolute right-2 top-2 rounded-full border border-line bg-bg/90 px-2 py-0.5 font-mono text-xs">{miles(distanceMi)}</span>
+        )}
       </div>
       <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="font-semibold text-base leading-tight">
-              {rank != null && <span className="text-muted mr-2 font-mono text-sm">#{rank}</span>}
-              {gym.name}
-            </h3>
-            {gym.claimed && <span className="text-accent text-xs">✓ claimed</span>}
-            <p className="text-sm text-muted mt-0.5 truncate">{gym.address ?? `${gym.city}, ${gym.state}`}</p>
-          </div>
+        <h3 className="font-semibold text-base leading-tight">
+          {rank != null && <span className="text-muted mr-2 font-mono text-sm">#{rank}</span>}
+          {gym.name}
+        </h3>
+        {gym.claimed && <span className="text-accent text-xs">✓ claimed</span>}
+        <p className="text-sm text-muted mt-0.5 truncate">{gym.address ?? `${gym.city}, ${gym.state}`}</p>
 
-        </div>
-
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded-md bg-bg/60 px-2.5 py-1.5">
-            <div className="text-xs text-muted">Drop-in</div>
-            <div className="font-mono">{money(gym.drop_in_cents)}</div>
-          </div>
-          <div className="rounded-md bg-bg/60 px-2.5 py-1.5">
-            <div className="text-xs text-muted">Monthly</div>
-            <div className="font-mono">{money(gym.monthly_cents)}</div>
-          </div>
-        </div>
+        {cost ? (
+          <p className="mt-3 font-mono text-sm">{cost}</p>
+        ) : (
+          <p className="mt-3 text-sm text-muted">Prices not listed</p>
+        )}
 
         <div className="mt-3 flex flex-wrap gap-1.5">
           {gym.styles.map((s) => (
             <Badge key={s} tone="accent">{STYLE_LABEL[s] ?? s}</Badge>
           ))}
-          <FighterBadge active={gym.active_fighters} pro={gym.pro_fighters} />
-          {gym.tags.slice(0, 3).map((t) => (
+          {orderedTags(gym.tags).slice(0, 3).map((t) => (
             <Badge key={t}>{TAG_LABEL[t] ?? t}</Badge>
           ))}
+          {hasSchedule(gym) && <Badge tone="gold">Schedule listed</Badge>}
+          <FighterBadge active={gym.active_fighters} pro={gym.pro_fighters} />
         </div>
       </div>
     </Link>

@@ -35,3 +35,30 @@ test("prices preserve cents instead of rounding the published amount", () => {
   assert.equal(money(0), "$0");
   assert.equal(money(null), "—");
 });
+
+test("cards lead with the first listed price and never render empty price boxes", () => {
+  const priced = { ...gym, trial_cents: 2000, drop_in_cents: 2500, monthly_cents: 15000, class_count: 2 };
+  let html = renderToStaticMarkup(<GymCard gym={priced} />);
+  assert.match(html, /Trial \$20/);
+  assert.doesNotMatch(html, /Drop-in|Monthly|—/);
+  assert.match(html, /Schedule listed/);
+  html = renderToStaticMarkup(<GymCard gym={{ ...priced, trial_cents: null }} />);
+  assert.match(html, /Drop-in \$25/);
+  html = renderToStaticMarkup(<GymCard gym={{ ...priced, trial_cents: null, drop_in_cents: null }} />);
+  assert.match(html, /Monthly \$150\/mo/);
+  const bare = { ...gym, trial_cents: null, drop_in_cents: null, monthly_cents: null, class_count: 0 };
+  html = renderToStaticMarkup(<GymCard gym={bare} />);
+  assert.match(html, /Prices not listed/);
+  assert.doesNotMatch(html, /Schedule listed|—/);
+  const legacy = { ...bare } as Record<string, unknown>;
+  delete legacy.trial_cents; delete legacy.class_count; // rows served before migration 0003
+  assert.match(renderToStaticMarkup(<GymCard gym={legacy as typeof bare} />), /Prices not listed/);
+});
+
+test("cards show a distance chip only when given one and put beginner friendly first", () => {
+  const tagged = { ...gym, tags: ["kids" as const, "beginner_friendly" as const] };
+  const html = renderToStaticMarkup(<GymCard gym={tagged} distanceMi={0.84} />);
+  assert.match(html, /0\.8 mi/);
+  assert.ok(html.indexOf("Beginner friendly") < html.indexOf("Kids classes"));
+  assert.doesNotMatch(renderToStaticMarkup(<GymCard gym={tagged} />), / mi</);
+});
