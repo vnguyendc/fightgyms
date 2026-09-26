@@ -1,3 +1,4 @@
+import { track } from "@vercel/analytics/server";
 import { getGymCard } from "@/lib/data";
 import { runtimePolicy } from "@/lib/site";
 import { insertSubmission, parseSubmission } from "@/lib/submissions";
@@ -18,6 +19,19 @@ async function readBody(request: Request): Promise<Record<string, unknown>> {
 }
 
 /**
+ * The one conversion worth counting. Field name only, never the value or email. Headers go to Vercel's own
+ * first-party insights endpoint so the event joins the visitor's session; a tracking failure never fails the request.
+ */
+async function recordSubmission(field: string, request: Request) {
+  if (!process.env.VERCEL) return; // off Vercel the SDK only logs a warning; skip the round trip entirely
+  try {
+    await track("correction_submitted", { field }, { headers: request.headers });
+  } catch (error) {
+    console.warn("analytics: correction_submitted not recorded", error instanceof Error ? error.message : error);
+  }
+}
+
+/**
  * Files a pending correction from a gym page. Never publishes, never updates directory tables,
  * never runs outside the live directory. Redirects are 303 so the browser GETs /claim after a POST.
  */
@@ -32,6 +46,7 @@ export async function POST(request: Request) {
     const card = await getGymCard(parsed.input.gym);
     if (!card) return back(`error=notfound&gym=${parsed.input.gym}`);
     await insertSubmission(card.id, parsed.input);
+    await recordSubmission(parsed.input.field, request);
     return back(`submitted=1&gym=${card.slug}`);
   } catch {
     return back(`error=1&gym=${parsed.input.gym}`);
