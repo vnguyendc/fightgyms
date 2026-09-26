@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import CityPage from "@/components/CityPage";
-import { getGymsByPlace, getPlace, getPlaces } from "@/lib/data";
+import { getAllGyms, getGymsByPlace, getPlace, getPlaces } from "@/lib/data";
+import { nearbyPlaces, placeCounts } from "@/lib/geo";
 import { cityPath, pageMetadata } from "@/lib/site";
 
 export const revalidate = 3600;
@@ -26,7 +27,7 @@ export default async function Page({ params }: PageProps<"/gyms/[state]/[city]">
   const { state, city } = await params;
   const place = await getPlace(`${city}-${state}`);
   if (!place) notFound();
-  const gyms = await getGymsByPlace(place.slug);
+  const [gyms, places, all] = await Promise.all([getGymsByPlace(place.slug), getPlaces(), getAllGyms()]);
   if (!gyms.length) notFound();
-  return <CityPage place={place} gyms={gyms} />;
+  return <CityPage place={place} gyms={gyms} nearby={nearbyPlaces(place, places, placeCounts(all))} />;
 }

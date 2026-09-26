@@ -62,3 +62,24 @@ test("cards show a distance chip only when given one and put beginner friendly f
   assert.ok(html.indexOf("Beginner friendly") < html.indexOf("Kids classes"));
   assert.doesNotMatch(renderToStaticMarkup(<GymCard gym={tagged} />), / mi</);
 });
+
+test("city pages order by completeness, state coverage honestly, and offer nearby cities", () => {
+  const bare = { ...gym, trial_cents: null, drop_in_cents: null, monthly_cents: null, class_count: 0, photo_path: null, website: null, tags: [] as typeof gym.tags };
+  const rows = [{ ...bare, slug: "zed", name: "Zed", id: "1" }, { ...bare, slug: "able", name: "Able", id: "2", trial_cents: 2000, tags: ["beginner_friendly" as const] }];
+  const dc = { ...place, slug: "washington-dc", city: "Washington", state: "DC", lat: 38.9072, lng: -77.0369 };
+  const nearby = [{ place: dc, distanceMi: 3.4, count: 16 }];
+  const html = renderToStaticMarkup(<CityPage place={place} gyms={rows} nearby={nearby} />);
+  assert.match(html, /2 gyms · 1 beginner friendly · 1 with a listed price · most complete listings first/);
+  assert.ok(html.indexOf('href="/gym/able"') < html.indexOf('href="/gym/zed"'), "server order is the completeness order");
+  const json = JSON.parse(html.match(/type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
+  assert.deepEqual(json.itemListElement.map((e: { name: string }) => e.name), ["Able", "Zed"]);
+  assert.match(html, /aria-pressed="true"[^>]*>Most complete/);
+  assert.match(html, /Nearest to me/);
+  assert.equal((html.match(/Nearby cities/g) ?? []).length, 2, "thin cities show nearby above and below the list");
+  assert.match(html, /href="\/gyms\/dc\/washington"[^>]*>Washington, DC/);
+  assert.match(html, /3\.4 mi/);
+  const many = Array.from({ length: 4 }, (_, i) => ({ ...bare, slug: `g${i}`, id: `g${i}`, name: `Gym ${i}` }));
+  assert.equal((renderToStaticMarkup(<CityPage place={place} gyms={many} nearby={nearby} />).match(/Nearby cities/g) ?? []).length, 1);
+  assert.doesNotMatch(renderToStaticMarkup(<CityPage place={place} gyms={many} />), /Nearby cities/);
+  assert.doesNotMatch(html, /Listed alphabetically/);
+});
