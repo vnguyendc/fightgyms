@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import CityPage from "../src/components/CityPage";
 import GymCard from "../src/components/GymCard";
+import SiteSearch from "../src/components/SiteSearch";
 import { money } from "../src/lib/data";
 import { gym, place } from "./fixtures";
 
@@ -82,4 +83,11 @@ test("city pages order by completeness, state coverage honestly, and offer nearb
   assert.equal((renderToStaticMarkup(<CityPage place={place} gyms={many} nearby={nearby} />).match(/Nearby cities/g) ?? []).length, 1);
   assert.doesNotMatch(renderToStaticMarkup(<CityPage place={place} gyms={many} />), /Nearby cities/);
   assert.doesNotMatch(html, /Listed alphabetically/);
+});
+
+test("site search is a plain GET form to /search with no suggestions until focused", () => {
+  const html = renderToStaticMarkup(<SiteSearch size="large" initialQuery="arl" />);
+  assert.match(html, /<form[^>]*action="\/search"[^>]*method="get"/);
+  assert.match(html, /name="q"[^>]*value="arl"/);
+  assert.doesNotMatch(html, /role="listbox"|Use my location/);
 });

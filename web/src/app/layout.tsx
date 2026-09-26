@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import SiteSearch from "@/components/SiteSearch";
 import { SITE, runtimePolicy } from "@/lib/site";
 import "./globals.css";
 
@@ -25,10 +26,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Link href="/" className="font-semibold tracking-tight text-lg">
               <span className="text-accent">▲</span> {SITE.name}
             </Link>
-            <nav className="flex items-center gap-5 text-sm text-muted">
+            <nav className="flex items-center gap-4 text-sm text-muted">
+              <div className="hidden sm:block"><SiteSearch /></div>
+              <Link href="/search" className="sm:hidden hover:text-ink">Search</Link>
               <Link href="/gyms" className="hover:text-ink">Gyms</Link>
               <Link href="/events" className="hover:text-ink">Events</Link>
-              <Link href="/claim" className="rounded-md border border-line px-3 py-1.5 hover:border-accent hover:text-ink">
+              <Link href="/claim" className="hidden sm:inline-block rounded-md border border-line px-3 py-1.5 hover:border-accent hover:text-ink">
                 Gym updates
               </Link>
             </nav>

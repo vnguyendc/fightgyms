@@ -30,13 +30,13 @@ try {
     server.once("error", error => { clearTimeout(timeout); reject(error); });
     server.once("exit", () => { clearTimeout(timeout); reject(new Error(`Server exited early: ${logs}`)); });
   });
-  for (const path of ["/", "/gyms", "/events", "/claim?gym=sample-siam-strike-arlington-va"]) {
+  for (const path of ["/", "/gyms", "/events", "/claim?gym=sample-siam-strike-arlington-va", "/search?q=arlington"]) {
     const { status, html } = await request(path);
     assert.equal(status, 200, path);
     assert.match(html, /<meta name="robots" content="noindex, nofollow"/);
     const canonical = `https://findfightgyms.com${path === "/" ? "" : path.split("?")[0]}`;
     assert.ok(html.includes(`<link rel="canonical" href="${canonical}"`), path);
-    assert.doesNotMatch(html, /Siam Strike Muay Thai|DMV Fight Night|aggregateRating|<form/);
+    assert.doesNotMatch(html, /Siam Strike Muay Thai|DMV Fight Night|aggregateRating|action="\/api\/submissions"/);
     assert.match(html, path.startsWith("/claim") ? /not available yet/ : /Directory temporarily unavailable/);
     console.log(`PASS ${status} ${path}: self canonical, noindex, honest state`);
   }
@@ -54,6 +54,10 @@ try {
   assert.equal(robots.status, 200);
   assert.doesNotMatch(robots.html, /Sitemap:/);
   console.log("PASS sitemap.xml: zero URLs; robots.txt: no sitemap advertised");
+  const index = await request("/api/search-index");
+  assert.equal(index.status, 200);
+  assert.equal(index.html, '{"gyms":[],"places":[]}');
+  console.log("PASS /api/search-index: empty index without a backend");
 } catch (error) {
   console.error(logs);
   throw error;

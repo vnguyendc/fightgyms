@@ -7,6 +7,7 @@ import * as profile from "../src/app/gym/[slug]/page";
 import * as home from "../src/app/page";
 import * as cities from "../src/app/gyms/page";
 import * as events from "../src/app/events/page";
+import * as search from "../src/app/search/page";
 import sitemap from "../src/app/sitemap";
 import robots from "../src/app/robots";
 import { gym, place } from "./fixtures";
@@ -49,7 +50,7 @@ test("populated routes have precise self canonicals and truthful metadata; empty
   await assert.rejects(() => style.default(empty), /NEXT_HTTP_ERROR_FALLBACK;404/);
   const urls = (await sitemap()).map(e => e.url);
   assert.ok(urls.includes("https://findfightgyms.com/gym/test-gym"));
-  assert.ok(!urls.some(url => /kickboxing$|\/events$|\/claim$/.test(url)));
+  assert.ok(!urls.some(url => /kickboxing$|\/events$|\/claim$|\/search$/.test(url)));
   assert.equal(robots().sitemap, "https://findfightgyms.com/sitemap.xml");
   const html = renderToStaticMarkup(await home.default());
   assert.match(html, /href="\/gyms\/va\/arlington\/muay-thai"/);
@@ -92,4 +93,16 @@ test("preview and demo routes stay noindex even with content; sitemap is empty",
     process.env.VERCEL_ENV = "production";
     delete process.env.SHOW_SAMPLE;
   }
+});
+
+test("search page lists matching cities and gyms, and says so when nothing matches", async t => {
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => fixtureResponse(input));
+  const page = (q: string | string[]) => search.default({ params: Promise.resolve({}), searchParams: Promise.resolve({ q }) });
+  let html = renderToStaticMarkup(await page("test"));
+  assert.match(html, /href="\/gym\/test-gym"/);
+  html = renderToStaticMarkup(await page("arl"));
+  assert.match(html, /href="\/gyms\/va\/arlington"/);
+  html = renderToStaticMarkup(await page(["zzz", "test"]));
+  assert.match(html, /No listed gyms or cities match/);
+  assert.doesNotMatch(html, /href="\/gym\/test-gym"/);
 });
