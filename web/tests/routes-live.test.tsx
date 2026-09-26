@@ -83,6 +83,37 @@ test("profiles use escaped, rating-free JSON-LD and preserve usable city links w
   assert.match(html, /href="\/gyms\/va\/arlington\/muay-thai"/);
 });
 
+test("profiles link scraped socials safely and declare them as sameAs", async t => {
+  const socials = [
+    { platform: "facebook", url: "https://www.facebook.com/testgym", handle: "testgym", credit: "website" },
+    { platform: "youtube", url: "https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv", handle: null, credit: "website" },
+    { platform: "instagram", url: "https://www.instagram.com/testgym", handle: "testgym", credit: "website" },
+    { platform: "x", url: "javascript:alert(1)", handle: "evil", credit: "website" },
+    { platform: "threads", url: "https://www.threads.net/@testgym", handle: "testgym", credit: "website" },
+  ];
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+    if (String(input).includes("/gym_socials")) return Response.json(socials);
+    return fixtureResponse(input);
+  });
+  const html = renderToStaticMarkup(await profile.default(gymProps));
+  const schema = JSON.parse(html.match(/type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
+  assert.deepEqual(schema.sameAs, [gym.website, "https://www.instagram.com/testgym", "https://www.facebook.com/testgym", "https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv"]);
+  assert.match(html, /<a href="https:\/\/www\.instagram\.com\/testgym" rel="nofollow noopener" target="_blank"[^>]*>Instagram @testgym ↗<\/a>/);
+  assert.match(html, /Facebook @testgym ↗/);
+  assert.match(html, /YouTube ↗/);
+  assert.doesNotMatch(html, /javascript:|@evil|threads/);
+  // a scraped instagram link replaces the older text-extracted gyms.instagram handle ("siamstrike" in the fixture)
+  assert.doesNotMatch(html, /@siamstrike|instagram\.com\/siamstrike/);
+});
+
+test("profiles fall back to the gyms.instagram handle until a scraped link exists", async t => {
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => fixtureResponse(input));
+  const html = renderToStaticMarkup(await profile.default(gymProps));
+  assert.match(html, /href="https:\/\/www\.instagram\.com\/siamstrike"[^>]*>Instagram @siamstrike ↗/);
+  const schema = JSON.parse(html.match(/type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
+  assert.deepEqual(schema.sameAs, [gym.website, "https://www.instagram.com/siamstrike"]);
+});
+
 test("preview and demo routes stay noindex even with content; sitemap is empty", async t => {
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => fixtureResponse(input));
   process.env.VERCEL_ENV = "preview";

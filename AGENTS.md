@@ -11,8 +11,8 @@ https://Codex.ai/code/artifact/4dcfe436-3410-4c99-8ea5-fa9f349c611b
 ## layout
 
 - `web/` — Next.js 16 app router (params are Promises; `PageProps<'/route'>` helper), Tailwind v4, `@supabase/supabase-js`. ISR 1h on all directory pages. Read `web/AGENTS.md` and `node_modules/next/dist/docs` before touching Next APIs.
-- `supabase/migrations/0001_init.sql` — schema + RLS + views. `0002_photos.sql` — `gym_photos` + `gym-photos` storage bucket, adds `photo_path` to `gym_cards`. `supabase/seed.sql` — 6 fictional demo gyms flagged `is_sample`.
-- `scrapers/` — python 3.11. `seed_places.py` (Google Places → gyms), `extract_site.py` (crawl → Codex Haiku structured output → validated prices/classes), `fetch_photos.py` (site images → Haiku vision filter → storage). Tests in `scrapers/tests`. See `scrapers/README.md`.
+- `supabase/migrations/0001_init.sql` — schema + RLS + views. `0002_photos.sql` — `gym_photos` + `gym-photos` storage bucket, adds `photo_path` to `gym_cards`. `0003_gym_cards_v3.sql` — adds `trial_cents`, `class_count` to `gym_cards`. `0004_submissions_policy.sql` — pending-only, bounded insert policy on `submissions`. `0005_socials.sql` — `gym_socials`, one active profile link per platform. `supabase/seed.sql` — 6 fictional demo gyms flagged `is_sample`.
+- `scrapers/` — python 3.11. `seed_places.py` (Google Places → gyms), `extract_site.py` (crawl → Codex Haiku structured output → validated prices/classes), `fetch_photos.py` (site images → Haiku vision filter → storage; social profile links on the same pages → `gym_socials` via `common/socials.py`). Tests in `scrapers/tests`. See `scrapers/README.md`.
 
 ## how it runs
 
@@ -27,6 +27,7 @@ https://Codex.ai/code/artifact/4dcfe436-3410-4c99-8ea5-fa9f349c611b
 - Prices append (one row per verification); schedules replace wholesale per source. `verified_by` tier is shown on the page: manual/phone > gym_claim > website > user_report.
 - Never invent prices or data for real gyms. Sample rows are fictional and must stay `is_sample=true`; their photos are generated gradients in `web/public/sample/`.
 - Photos: only from the gym's own site (`credit=website`) or uploaded by a verified claimant (`credit=gym_claim`). No Google Places or Instagram images.
+- Socials: only profile links found on the gym's own site or added by a verified claimant; never post, share or vendor links. `gyms.instagram` (older, text-extracted) is only a page fallback until a `gym_socials` row exists.
 - Style is lowercase/terse in commits and comments; no header scaffolding in docs.
 
 ## next (in order)

@@ -11,7 +11,7 @@ env — put these in `scrapers/.env` (gitignored) and load with `set -a; source 
 order:
 1. `python seed_places.py --cities cities/dmv.txt` — seeds gyms + places from google. city/state come from each result's address components, not the search city (text search for "X in Arlington" returns half of NoVA).
 2. `python extract_site.py --limit 50` — crawls each gym site, extracts prices/schedule/coaches
-2b. `python fetch_photos.py --limit 50` — homepage + gallery images, vision-filtered, into storage. `--url https://...` dry-runs any site
+2b. `python fetch_photos.py --limit 50` — homepage + gallery images, vision-filtered, into storage; the same pages' instagram / facebook / tiktok / youtube / x profile links go to `gym_socials` (one per platform, existing link kept). `--socials-only` skips images (no model, no storage). `--url https://...` dry-runs any site
 3. `python enrich_tapology.py` — (todo) fighter records → fighters table
 4. `python run_sql.py -c "select refresh_gym_fighter_stats()"` — no psql needed; `run_sql.py <file.sql>` also applies migrations
 

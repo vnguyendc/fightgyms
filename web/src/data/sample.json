@@ -485,6 +485,26 @@
                     "alt": "Siam Strike Muay Thai (sample photo)",
                     "credit": "website"
                 }
+            ],
+            "socials": [
+                {
+                    "platform": "instagram",
+                    "url": "https://www.instagram.com/siamstrike",
+                    "handle": "siamstrike",
+                    "credit": "website"
+                },
+                {
+                    "platform": "facebook",
+                    "url": "https://www.facebook.com/siamstrike",
+                    "handle": "siamstrike",
+                    "credit": "website"
+                },
+                {
+                    "platform": "youtube",
+                    "url": "https://www.youtube.com/@siamstrike",
+                    "handle": "siamstrike",
+                    "credit": "website"
+                }
             ]
         },
         "sample-capital-fight-lab-washington-dc": {
@@ -602,6 +622,20 @@
                     "alt": "Capital Fight Lab (sample photo)",
                     "credit": "website"
                 }
+            ],
+            "socials": [
+                {
+                    "platform": "instagram",
+                    "url": "https://www.instagram.com/capitalfightlab",
+                    "handle": "capitalfightlab",
+                    "credit": "website"
+                },
+                {
+                    "platform": "tiktok",
+                    "url": "https://www.tiktok.com/@capitalfightlab",
+                    "handle": "capitalfightlab",
+                    "credit": "website"
+                }
             ]
         },
         "sample-eight-limbs-alexandria-va": {
@@ -702,6 +736,20 @@
                     "alt": "Eight Limbs Alexandria (sample photo)",
                     "credit": "website"
                 }
+            ],
+            "socials": [
+                {
+                    "platform": "instagram",
+                    "url": "https://www.instagram.com/eightlimbsalx",
+                    "handle": "eightlimbsalx",
+                    "credit": "website"
+                },
+                {
+                    "platform": "facebook",
+                    "url": "https://www.facebook.com/profile.php?id=100000000000001",
+                    "handle": null,
+                    "credit": "gym_claim"
+                }
             ]
         },
         "sample-nova-kickboxing-fairfax-va": {
@@ -737,7 +785,8 @@
             "classes": [],
             "coaches": [],
             "fighters": [],
-            "photos": []
+            "photos": [],
+            "socials": []
         },
         "sample-vienna-muay-thai-vienna-va": {
             "description": "Small Sitmonchai-affiliated gym. Two Thai trainers, strong on fundamentals.",
@@ -803,7 +852,8 @@
                     "updated_at": "2026-09-20T21:19:35.045347+00:00"
                 }
             ],
-            "photos": []
+            "photos": [],
+            "socials": []
         },
         "sample-silver-spring-fight-club-silver-spring-md": {
             "description": "Fight-team-first MMA gym. Muay thai program feeds the amateur MMA roster.",
@@ -875,7 +925,8 @@
                     "updated_at": "2026-09-20T21:19:35.045347+00:00"
                 }
             ],
-            "photos": []
+            "photos": [],
+            "socials": []
         }
     },
     "events": [

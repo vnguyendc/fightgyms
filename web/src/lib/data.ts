@@ -2,7 +2,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import sample from "@/data/sample.json";
 import { runtimePolicy } from "./site";
-import { LIVE_STYLES, type Event, type GymCard, type GymDetail, type Photo, type Place, type Style } from "./types";
+import { LIVE_STYLES, SOCIAL_ORDER, type Event, type GymCard, type GymDetail, type Photo, type Place, type Social, type Style } from "./types";
 
 // Display helpers live in ./format so client components never import this module (it bundles supabase-js and sample.json).
 export { DOW, fmtTime, money, photoUrl } from "./format";
@@ -32,6 +32,15 @@ const demo = () => runtimePolicy().mode === "demo";
 const visible = (g: { is_sample: boolean; slug: string }) => demo() || (g.is_sample === false && !g.slug.startsWith("sample-"));
 // Only gyms with a public discipline are listed; other rows remain in the database.
 const live = (g: { styles: Style[] }) => g.styles.some((s) => LIVE_STYLES.includes(s));
+
+/** Display order, unknown platforms dropped. gyms.instagram (older, text-extracted) fills in until a scraped link exists. */
+function orderSocials(rows: Social[], instagram: string | null): Social[] {
+  const handle = instagram?.replace(/^@/, "");
+  const all = handle && /^[A-Za-z0-9._]{1,30}$/.test(handle) && !rows.some((s) => s.platform === "instagram")
+    ? [...rows, { platform: "instagram" as const, url: `https://www.instagram.com/${handle}`, handle, credit: null }]
+    : rows;
+  return SOCIAL_ORDER.flatMap((p) => all.filter((s) => s.platform === p));
+}
 
 /** Populated cities only. A place record alone is not a directory landing page. */
 export async function getPlaces(): Promise<Place[]> {
@@ -89,11 +98,11 @@ export async function getGym(slug: string): Promise<GymDetail | null> {
     const card = S.gyms.find((g) => g.slug === slug);
     const d = S.gym_details[slug];
     if (!card || !d || !live(card)) return null;
-    return { ...card, ...d };
+    return { ...card, ...d, socials: orderSocials(d.socials, card.instagram) };
   }
   const card = await getGymCard(slug);
   if (!card) return null;
-  const [gym, prices, classes, coaches, fighters, photos] = await Promise.all([
+  const [gym, prices, classes, coaches, fighters, photos, socials] = await Promise.all([
     checked(c.from("gyms").select("description, phone, affiliation, founded_year").eq("id", card.id).single()),
     checked(c.from("gym_current_prices").select("*").eq("gym_id", card.id)),
     checked(c.from("classes").select("*").eq("gym_id", card.id).order("dow").order("start_time")),
@@ -101,12 +110,14 @@ export async function getGym(slug: string): Promise<GymDetail | null> {
     checked(c.from("fighters").select("*").eq("gym_id", card.id).order("last_bout", { ascending: false })),
     checked(c.from("gym_photos").select("storage_path, width, height, alt, credit").eq("gym_id", card.id)
       .eq("is_active", true).order("is_primary", { ascending: false }).order("sort_order")),
+    checked(c.from("gym_socials").select("platform, url, handle, credit").eq("gym_id", card.id).eq("is_active", true)),
   ]);
   return {
     ...card,
     ...(gym ?? { description: null, phone: null, affiliation: null, founded_year: null }),
     prices: prices ?? [], classes: classes ?? [], coaches: coaches ?? [], fighters: fighters ?? [],
     photos: (photos as Photo[] | null) ?? [],
+    socials: orderSocials((socials as Social[] | null) ?? [], card.instagram),
   };
 }
 
