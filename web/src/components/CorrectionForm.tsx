@@ -21,6 +21,7 @@ export default function CorrectionForm({ slug }: { slug: string }) {
       <label className="mt-3 block">
         Value
         <input name="value" required maxLength={500} placeholder="$25, or a full https:// address" className={field} />
+        <span className="mt-1 block text-xs text-muted">Prices as a dollar amount up to $1,000; websites as a full https:// address; anything else in up to 200 characters.</span>
       </label>
       <label className="mt-3 block">
         Note <span className="text-muted">(optional)</span>

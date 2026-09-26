@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import CityPage from "../src/components/CityPage";
 import GymCard from "../src/components/GymCard";
 import SiteSearch from "../src/components/SiteSearch";
+import SuggestionList from "../src/components/SuggestionList";
 import { money } from "../src/lib/data";
 import { gym, place } from "./fixtures";
 
@@ -90,4 +91,21 @@ test("site search is a plain GET form to /search with no suggestions until focus
   assert.match(html, /<form[^>]*action="\/search"[^>]*method="get"/);
   assert.match(html, /name="q"[^>]*value="arl"/);
   assert.doesNotMatch(html, /role="listbox"|Use my location/);
+});
+
+test("suggestion list renders options with ids, hrefs, the active item and the locate button", () => {
+  const items = [
+    { key: "p-arlington-va", label: "Arlington, VA", detail: "9 gyms", href: "/gyms/va/arlington" },
+    { key: "g-alpha-gym", label: "Alpha Gym", detail: "Arlington, VA", href: "/gym/alpha-gym" },
+  ];
+  const html = renderToStaticMarkup(<SuggestionList listId="s-listbox" items={items} active={1} locate={true} locating={false} onLocate={() => {}} linkRef={() => {}} />);
+  assert.match(html, /<ul[^>]*id="s-listbox"[^>]*role="listbox"/);
+  assert.match(html, /id="s-listbox-0"[^>]*role="option"[^>]*aria-selected="false"[\s\S]*?Use my location/);
+  assert.match(html, /id="s-listbox-1"[^>]*role="option"[^>]*aria-selected="true"[\s\S]*?href="\/gyms\/va\/arlington"/);
+  assert.match(html, /id="s-listbox-2"[^>]*aria-selected="false"[\s\S]*?href="\/gym\/alpha-gym"/);
+  assert.equal((html.match(/role="option"/g) ?? []).length, 3);
+  const noLocate = renderToStaticMarkup(<SuggestionList listId="s-listbox" items={items} active={0} locate={false} locating={false} onLocate={() => {}} linkRef={() => {}} />);
+  assert.doesNotMatch(noLocate, /Use my location/);
+  assert.match(noLocate, /id="s-listbox-0"[^>]*aria-selected="true"[\s\S]*?href="\/gyms\/va\/arlington"/);
+  assert.equal((noLocate.match(/role="option"/g) ?? []).length, 2);
 });

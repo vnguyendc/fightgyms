@@ -24,6 +24,8 @@ test("prices parse to cents within a sane range", () => {
   assert.equal(parseCents("25.5"), 2550);
   assert.equal(parseCents(" 25.00 "), 2500);
   assert.equal(parseCents("1000"), 100000);
+  assert.equal(parseCents("1,000"), 100000);
+  assert.equal(parseCents("$1,000.00"), 100000);
   for (const bad of ["twenty", "0.50", "1001", "-5", "25.999", "$", "", "1e3"]) assert.equal(parseCents(bad), null, bad);
 });
 

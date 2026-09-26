@@ -244,7 +244,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
               <ul className="mt-2 space-y-1.5">
                 {headline.map((p) => (
                   <li key={p.kind} className="flex items-baseline justify-between gap-3">
-                    <span>{PRICE_LABEL[p.kind]}</span>
+                    <span>{PRICE_LABEL[p.kind]}<span className="block text-xs text-muted">{VERIFIED_LABEL[p.verified_by ?? ""] ?? ""}</span></span>
                     <span className="font-mono text-lg">{money(p.amount_cents)}</span>
                   </li>
                 ))}

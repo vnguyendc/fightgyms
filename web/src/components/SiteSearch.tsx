@@ -1,16 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { useId, useRef, useState, type KeyboardEvent } from "react";
+import SuggestionList, { type Suggestion } from "@/components/SuggestionList";
 import { nearestPlace } from "@/lib/geo";
 import { EMPTY_INDEX, matchIndex, type SearchIndex } from "@/lib/search";
-
-type Item = { key: string; label: string; detail: string; href: string };
 
 /**
  * One box for gym and city names. Plain GET form to /search without JavaScript; with it, suggestions
  * come from /api/search-index (fetched once, on first focus) and "Use my location" jumps to the nearest listed city.
- * No router hooks: suggestions are <Link>s, Enter clicks the active one.
+ * No router hooks: suggestions are <Link>s, Enter clicks the active one (or falls back to a full navigation).
  */
 export default function SiteSearch({ size = "compact", initialQuery = "" }: { size?: "compact" | "large"; initialQuery?: string }) {
   const id = useId();
@@ -35,7 +33,7 @@ export default function SiteSearch({ size = "compact", initialQuery = "" }: { si
 
   const q = query.trim();
   const matches = q && index ? matchIndex(q, index, 6) : EMPTY_INDEX;
-  const items: Item[] = [
+  const items: Suggestion[] = [
     ...matches.places.map((p) => ({ key: `p-${p.slug}`, label: `${p.city}, ${p.state}`, detail: `${p.count} gym${p.count === 1 ? "" : "s"}`, href: p.path })),
     ...matches.gyms.map((g) => ({ key: `g-${g.slug}`, label: g.name, detail: [g.city, g.state].filter(Boolean).join(", "), href: g.path })),
   ];
@@ -66,8 +64,12 @@ export default function SiteSearch({ size = "compact", initialQuery = "" }: { si
     else if (e.key === "Escape") { setOpen(false); setActive(-1); }
     else if (e.key === "Enter" && active >= 0) {
       e.preventDefault();
-      if (canLocate && active === 0) locate();
-      else links.current[active - offset]?.click();
+      if (canLocate && active === 0) return locate();
+      const target = items[active - offset];
+      if (!target) return;
+      const anchor = links.current[active - offset];
+      if (anchor) anchor.click(); // client-side navigation through next/link
+      else window.location.assign(target.href);
     }
   }
 
@@ -94,31 +96,15 @@ export default function SiteSearch({ size = "compact", initialQuery = "" }: { si
         className={`w-full rounded-md border border-line bg-panel px-3 focus:border-accent focus:outline-none ${large ? "py-3 text-base" : "py-1.5 text-sm"}`}
       />
       {open && count > 0 && (
-        <ul
-          id={listId}
-          role="listbox"
-          onMouseDown={(e) => e.preventDefault()}
-          className="absolute left-0 right-0 z-20 mt-1 overflow-hidden rounded-md border border-line bg-panel text-sm shadow-lg"
-        >
-          {canLocate && (
-            <li id={`${listId}-0`} role="option" aria-selected={active === 0}>
-              <button type="button" onClick={locate} className={`block w-full px-3 py-2 text-left ${active === 0 ? "bg-bg" : ""}`}>
-                {locating ? "Locating…" : "Use my location"} <span className="text-muted">nearest listed city</span>
-              </button>
-            </li>
-          )}
-          {items.map((item, i) => {
-            const at = i + offset;
-            return (
-              <li key={item.key} id={`${listId}-${at}`} role="option" aria-selected={active === at}>
-                <Link href={item.href} ref={(el) => { links.current[i] = el; }} className={`flex justify-between gap-3 px-3 py-2 ${active === at ? "bg-bg" : ""}`}>
-                  <span>{item.label}</span>
-                  <span className="text-muted">{item.detail}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <SuggestionList
+          listId={listId}
+          items={items}
+          active={active}
+          locate={canLocate}
+          locating={locating}
+          onLocate={locate}
+          linkRef={(i, el) => { links.current[i] = el; }}
+        />
       )}
     </form>
   );

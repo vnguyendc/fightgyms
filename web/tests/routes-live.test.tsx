@@ -128,7 +128,7 @@ test("profiles show what it costs, where the facts came from, and the nearest gy
     return fixtureResponse(input);
   });
   const html = renderToStaticMarkup(await profile.default(gymProps));
-  assert.match(html, /What it costs[\s\S]{0,400}Intro \/ trial[\s\S]{0,200}\$20/);
+  assert.match(html, /What it costs[\s\S]{0,400}Intro \/ trial[\s\S]{0,300}from gym website[\s\S]{0,300}\$20/);
   assert.match(html, /Listed from the gym’s website · prices last verified 2026-09-01/);
   assert.match(html, /Nearby gyms[\s\S]*href="\/gym\/near-gym"[\s\S]*mi</);
   const schema = JSON.parse(html.match(/type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);

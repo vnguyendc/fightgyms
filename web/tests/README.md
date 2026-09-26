@@ -24,7 +24,7 @@ The smoke command starts/stops a local production server on port 3108 (`SMOKE_PO
 
 ## Data contract / publishing
 
-Reads use `gym_cards` (migration 0003 adds `trial_cents` and `class_count`; rows without them render as missing data, not errors), `places`, `gyms`, `gym_current_prices`, `classes`, `coaches`, `fighters`, `events`. The only write path is `POST /api/submissions`, which inserts `status='pending'` rows into `submissions` through the anon key, never updates directory tables, and returns 503 outside the live directory. Keep `LIVE_STYLES` at `muay_thai` and `kickboxing`.
+Reads use `gym_cards` (migration 0003 adds `trial_cents` and `class_count`; rows without them render as missing data, not errors), `places`, `gyms`, `gym_current_prices`, `classes`, `coaches`, `fighters`, `events`. The only write path is `POST /api/submissions`, which inserts `status='pending'` rows into `submissions` through the anon key, never updates directory tables, and returns 503 outside the live directory. Migration 0004 makes the row-level policy enforce the same limits, since the anon key is public and the route is not a security boundary. Keep `LIVE_STYLES` at `muay_thai` and `kickboxing`.
 
 Publish real active gym rows with `is_sample=false`, stable slugs, public discipline(s), and matching place records. Reserve the `sample-` slug prefix for fictional fixtures. Existing event seeds have no `is_sample` column, so `sample-*` event slugs are explicitly excluded. Do not put fictional events under ordinary slugs. Google rating fields remain stored but are not displayed, ranked on, or emitted as aggregate ratings.
 

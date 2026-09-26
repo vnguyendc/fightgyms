@@ -10,6 +10,7 @@ The launch slice does not depend on Jev. It provides safe SEO behavior and a pub
 - Set `NEXT_PUBLIC_SITE_URL=https://findfightgyms.com`, `NEXT_PUBLIC_SUPABASE_URL`, and the **public anon** `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Never expose a service-role key to the browser.
 - Leave `SHOW_SAMPLE` unset/`0`. Verify the existing schema and public-read RLS with actual data before publishing.
 - Apply `supabase/migrations/0003_gym_cards_v3.sql` (`cd scrapers && .venv/bin/python run_sql.py ../supabase/migrations/0003_gym_cards_v3.sql`) before deploying a build that reads `trial_cents`/`class_count`. Older rows render as missing data, not errors. Rollback is re-running the view definition in `0002_photos.sql`; never drop data.
+- Apply `supabase/migrations/0004_submissions_policy.sql` before or with the first deploy that serves the correction form: it narrows the public insert policy on `submissions` to pending rows with allowed fields and bounded sizes. Rollback is re-creating the `with check (true)` policy from `0001_init.sql`.
 - Attach the purchased domain and verify HTTPS and the preferred apex/www redirect. No DNS or domain change is implied by this document.
 - Without a configured real backend, production intentionally shows an unavailable state, noindex, no fictional detail routes, and an empty sitemap. That state is **not an SEO launch**.
 

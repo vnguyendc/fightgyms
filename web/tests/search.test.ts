@@ -30,6 +30,8 @@ test("matching is case-insensitive, prefix before substring, bounded, and safe f
   assert.deepEqual(matchIndex("(", index), EMPTY_INDEX);
   assert.deepEqual(matchIndex("a".repeat(500), index), EMPTY_INDEX);
   assert.equal(matchIndex("a", index, 1).gyms.length, 1);
+  const long = buildSearchIndex([{ ...gym, slug: "long", name: "a".repeat(80) + "zzz" }], [place]);
+  assert.deepEqual(matchIndex("a".repeat(80) + "qqq", long).gyms.map((g) => g.slug), ["long"]); // cut at 80 chars before matching
 });
 
 test("search index route returns the public index, and an empty index without a backend", async (t) => {

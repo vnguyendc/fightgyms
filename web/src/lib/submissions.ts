@@ -32,9 +32,9 @@ const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
 
 const str = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 
-/** "$25", "25", "25.00", "25.5" → cents; anything else, or outside $1–$1,000, → null. */
+/** "$25", "25", "25.00", "25.5", "1,000" → cents; anything else, or outside $1–$1,000, → null. */
 export function parseCents(value: string): number | null {
-  const m = /^\$?\s*(\d{1,4})(?:\.(\d{1,2}))?$/.exec(value.trim());
+  const m = /^\$?\s*(\d{1,4})(?:\.(\d{1,2}))?$/.exec(value.replace(/,/g, "").trim());
   if (!m) return null;
   const cents = Number(m[1]) * 100 + Number((m[2] ?? "").padEnd(2, "0"));
   return cents >= 100 && cents <= 100000 ? cents : null;
