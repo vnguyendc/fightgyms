@@ -25,10 +25,14 @@ test("city structured data cannot break out of a script; card UI does not republ
 test("route failures have an explicit retry state without exposing backend errors", async () => {
   assert.ok(existsSync("src/app/error.tsx"), "missing route error boundary");
   const ErrorPage = (await import("../src/app/error")).default;
-  const html = renderToStaticMarkup(<ErrorPage retry={() => {}} />);
+  const error = Object.assign(new Error("PostgrestError: relation gym_cards does not exist"), { digest: "3971446215" });
+  const html = renderToStaticMarkup(<ErrorPage error={error} retry={() => {}} />);
   assert.match(html, /Directory temporarily unavailable/);
   assert.match(html, /Try again/);
   assert.match(html, /name="robots" content="noindex, nofollow"/);
+  assert.match(html, /Reference 3971446215/, "digest lets a user report be matched to the server log line");
+  assert.doesNotMatch(html, /Postgrest|gym_cards/);
+  assert.doesNotMatch(renderToStaticMarkup(<ErrorPage error={new Error("x")} retry={() => {}} />), /Reference/);
 });
 
 test("prices preserve cents instead of rounding the published amount", () => {

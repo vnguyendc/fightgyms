@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import SiteSearch from "@/components/SiteSearch";
 import { SITE, runtimePolicy } from "@/lib/site";
 import "./globals.css";
@@ -48,6 +50,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </span>
           </div>
         </footer>
+        {/* Vercel Web Analytics + Speed Insights: no-ops off Vercel; enable both in the project dashboard. */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
