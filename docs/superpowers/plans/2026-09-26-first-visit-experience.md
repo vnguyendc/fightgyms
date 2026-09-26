@@ -23,6 +23,7 @@
 - Full check must stay green before every commit that touches `web/`: `cd web && npm test && npm run typecheck && npm run lint`. Before the final PR also `npm run build && npm run test:smoke` with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` unset.
 - Commit messages: lowercase, terse, one line, ending with a blank line and `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`. Work on branch `first-visit-experience`.
 - Read `web/node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/route.md` and `page.md` before touching a route or page file.
+- All work happens in the worktree `/Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience` on branch `first-visit-experience`. Ignored local files (`scrapers/.env`, `scrapers/.venv`, `web/.env.local`) live only in the main checkout `/Users/vinhnguyen/projects/fightgyms`; the commands below reference them there explicitly.
 
 ## Review Focus
 
@@ -95,7 +96,7 @@ import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
 import { pgcrypto } from "@electric-sql/pglite/contrib/pgcrypto";
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
-const root = "/Users/vinhnguyen/projects/fightgyms";
+const root = "/Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience";
 const db = new PGlite({ extensions: { pg_trgm, pgcrypto } });
 // supabase-managed schemas the migrations reference
 await db.exec(`
@@ -138,7 +139,7 @@ In `web/src/lib/types.ts`, inside `export interface GymCard`, directly after `mo
 - [ ] **Step 4: Add the fields to sample data by script (4-space indent, keep trailing newline)**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && python3 - <<'PY'
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && python3 - <<'PY'
 import json
 p = "src/data/sample.json"
 raw = open(p).read()
@@ -159,7 +160,7 @@ Expected: about 18 insertions and 6 deletions (two new keys per gym, and the pre
 - [ ] **Step 5: Typecheck and run the existing suite**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && npm run typecheck && npm test
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && npm run typecheck && npm test
 ```
 
 Expected: both pass (the fixture `gym` spreads `sample.gyms[0]`, so it now carries both fields).
@@ -167,7 +168,7 @@ Expected: both pass (the fixture `gym` spreads `sample.gyms[0]`, so it now carri
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms && git add supabase/migrations/0003_gym_cards_v3.sql web/src/lib/types.ts web/src/data/sample.json && git commit -q -m "gym_cards v3: trial_cents, class_count
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience && git add supabase/migrations/0003_gym_cards_v3.sql web/src/lib/types.ts web/src/data/sample.json && git commit -q -m "gym_cards v3: trial_cents, class_count
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
@@ -262,7 +263,7 @@ test("coverage line omits zero parts; formatting helpers", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && node --import tsx --test tests/geo.test.ts
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && node --import tsx --test tests/geo.test.ts
 ```
 
 Expected: FAIL, cannot find module `../src/lib/geo` / `../src/lib/format`.
@@ -432,7 +433,7 @@ Then:
 - [ ] **Step 6: Run the tests, typecheck, lint**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && node --import tsx --test tests/geo.test.ts && npm test && npm run typecheck && npm run lint
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && node --import tsx --test tests/geo.test.ts && npm test && npm run typecheck && npm run lint
 ```
 
 Expected: all PASS. If lint complains about unused `getAllGyms` in the profile page, keep it: Task 9 uses it; otherwise remove it from that import for now and re-add in Task 9.
@@ -440,7 +441,7 @@ Expected: all PASS. If lint complains about unused `getAllGyms` in the profile p
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms && git add web/src/lib web/src/components web/src/app web/tests/geo.test.ts && git commit -q -m "lib: format and geo helpers, client-safe
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience && git add web/src/lib web/src/components web/src/app web/tests/geo.test.ts && git commit -q -m "lib: format and geo helpers, client-safe
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
@@ -491,7 +492,7 @@ test("cards show a distance chip only when given one and put beginner friendly f
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && node --import tsx --test tests/components.test.tsx
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && node --import tsx --test tests/components.test.tsx
 ```
 
 Expected: the two new tests FAIL (`Trial $20` not found; `—` present).
@@ -588,7 +589,7 @@ export default function GymCard({ gym, rank, distanceMi }: { gym: GymCardT; rank
 - [ ] **Step 4: Run tests, typecheck, lint**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && npm test && npm run typecheck && npm run lint
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && npm test && npm run typecheck && npm run lint
 ```
 
 Expected: PASS. (The existing card test still asserts no `★|reviews`.)
@@ -596,7 +597,7 @@ Expected: PASS. (The existing card test still asserts no `★|reviews`.)
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms && git add web/src/components/GymCard.tsx web/tests/components.test.tsx && git commit -q -m "gym card: first listed price, schedule chip, distance chip
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience && git add web/src/components/GymCard.tsx web/tests/components.test.tsx && git commit -q -m "gym card: first listed price, schedule chip, distance chip
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
@@ -642,7 +643,7 @@ test("city pages order by completeness, state coverage honestly, and offer nearb
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && node --import tsx --test tests/components.test.tsx
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && node --import tsx --test tests/components.test.tsx
 ```
 
 Expected: FAIL on the coverage-line regex.
@@ -867,7 +868,7 @@ export default async function Page({ params }: PageProps<"/gyms/[state]/[city]/[
 - [ ] **Step 7: Run tests, typecheck, lint**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && npm test && npm run typecheck && npm run lint
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && npm test && npm run typecheck && npm run lint
 ```
 
 Expected: PASS, including `routes-live` (its fixture answers both `gym_cards` list and `places` list) and `routes-missing` (404s unchanged).
@@ -875,7 +876,7 @@ Expected: PASS, including `routes-live` (its fixture answers both `gym_cards` li
 - [ ] **Step 8: Commit**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms && git add web/src/components web/src/app/gyms web/tests/components.test.tsx && git commit -q -m "city page: completeness order, sort control, nearby cities
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience && git add web/src/components web/src/app/gyms web/tests/components.test.tsx && git commit -q -m "city page: completeness order, sort control, nearby cities
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
@@ -951,7 +952,7 @@ test("search index route returns the public index, and an empty index without a 
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && node --import tsx --test tests/search.test.ts
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && node --import tsx --test tests/search.test.ts
 ```
 
 Expected: FAIL, cannot find module `../src/lib/search`.
@@ -1035,7 +1036,7 @@ export async function GET() {
 - [ ] **Step 6: Run tests, typecheck, lint**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && node --import tsx --test tests/search.test.ts && npm test && npm run typecheck && npm run lint
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && node --import tsx --test tests/search.test.ts && npm test && npm run typecheck && npm run lint
 ```
 
 Expected: PASS.
@@ -1043,7 +1044,7 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms && git add web/src/lib/search.ts web/src/lib/search-index.ts web/src/app/api/search-index web/tests/search.test.ts && git commit -q -m "search: matcher, index builder, cached index route
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience && git add web/src/lib/search.ts web/src/lib/search-index.ts web/src/app/api/search-index web/tests/search.test.ts && git commit -q -m "search: matcher, index builder, cached index route
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
@@ -1110,7 +1111,7 @@ And in the first `routes-live` test, change the sitemap exclusion to `assert.ok(
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && npm test
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && npm test
 ```
 
 Expected: the new tests FAIL (missing modules).
@@ -1342,7 +1343,7 @@ In `web/tests/smoke.mjs`:
 - [ ] **Step 7: Run tests, typecheck, lint**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && npm test && npm run typecheck && npm run lint
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && npm test && npm run typecheck && npm run lint
 ```
 
 Expected: PASS. If lint flags `react-hooks/refs` on `links.current[i] = el`, that assignment lives in a ref callback (allowed); if it flags `pending.current` reads, they are inside event handlers (allowed) — re-check the code is not reading refs during render before changing anything.
@@ -1350,7 +1351,7 @@ Expected: PASS. If lint flags `react-hooks/refs` on `links.current[i] = el`, tha
 - [ ] **Step 8: Build and smoke (unconfigured)**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= npm run build && NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= npm run test:smoke
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= npm run build && NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= npm run test:smoke
 ```
 
 Expected: build succeeds (`/search` listed as dynamic, `/api/search-index` as static), every smoke line prints PASS. `web/.env.local` holds live Supabase config; the empty-string overrides win because `@next/env` only fills variables that are undefined. If smoke nevertheless sees real data (a 200 on `/gyms/va/arlington`), run the same command with `.env.local` temporarily renamed to `.env.local.off`, then rename it back.
@@ -1358,7 +1359,7 @@ Expected: build succeeds (`/search` listed as dynamic, `/api/search-index` as st
 - [ ] **Step 9: Commit**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms && git add web/src/components/SiteSearch.tsx web/src/app/search web/src/app/layout.tsx web/tests && git commit -q -m "site search: header box, hero box, noindex /search fallback
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience && git add web/src/components/SiteSearch.tsx web/src/app/search web/src/app/layout.tsx web/tests && git commit -q -m "site search: header box, hero box, noindex /search fallback
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
@@ -1394,7 +1395,7 @@ In `web/tests/routes-missing.test.tsx`, first test, inside the loop after the `D
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && node --import tsx --test tests/routes-live.test.tsx
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && node --import tsx --test tests/routes-live.test.tsx
 ```
 
 Expected: FAIL on `1 gym in 1 city across VA`.
@@ -1501,7 +1502,7 @@ export default async function Home() {
 - [ ] **Step 4: Run tests, typecheck, lint**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && npm test && npm run typecheck && npm run lint
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && npm test && npm run typecheck && npm run lint
 ```
 
 Expected: PASS.
@@ -1509,7 +1510,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms && git add web/src/app/page.tsx web/tests && git commit -q -m "home: search-first hero, computed coverage, most complete listings
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience && git add web/src/app/page.tsx web/tests && git commit -q -m "home: search-first hero, computed coverage, most complete listings
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
@@ -1633,7 +1634,7 @@ test("route validates, looks up the gym, inserts a pending row and redirects wit
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && node --import tsx --test tests/submissions.test.ts
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && node --import tsx --test tests/submissions.test.ts
 ```
 
 Expected: FAIL, cannot find module `../src/lib/submissions`.
@@ -1861,7 +1862,7 @@ In `web/tests/smoke.mjs`, after the search-index check from Task 6, add:
 - [ ] **Step 8: Run tests, typecheck, lint**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && node --import tsx --test tests/submissions.test.ts && npm test && npm run typecheck && npm run lint
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && node --import tsx --test tests/submissions.test.ts && npm test && npm run typecheck && npm run lint
 ```
 
 Expected: PASS. `routes-missing`'s claim test still matches `not available yet` and finds no `<form`.
@@ -1869,7 +1870,7 @@ Expected: PASS. `routes-missing`'s claim test still matches `not available yet` 
 - [ ] **Step 9: Commit**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms && git add web/src/lib/submissions.ts web/src/lib/data.ts web/src/app/api/submissions web/src/app/claim/page.tsx web/tests && git commit -q -m "submissions: pending-only corrections route and claim states
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience && git add web/src/lib/submissions.ts web/src/lib/data.ts web/src/app/api/submissions web/src/app/claim/page.tsx web/tests && git commit -q -m "submissions: pending-only corrections route and claim states
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
@@ -1933,7 +1934,7 @@ In the "preview and demo routes" test, after `assert.match(renderToStaticMarkup(
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && node --import tsx --test tests/routes-live.test.tsx
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && node --import tsx --test tests/routes-live.test.tsx
 ```
 
 Expected: FAIL (no form, no "What it costs").
@@ -2092,7 +2093,7 @@ Replace the whole `<aside className="space-y-4">…</aside>` with:
 - [ ] **Step 5: Run tests, typecheck, lint**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && npm test && npm run typecheck && npm run lint
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && npm test && npm run typecheck && npm run lint
 ```
 
 Expected: PASS.
@@ -2100,7 +2101,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms && git add web/src/components/CorrectionForm.tsx "web/src/app/gym/[slug]/page.tsx" web/tests/routes-live.test.tsx && git commit -q -m "gym profile: what it costs, trust line, correction form, nearby gyms
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience && git add web/src/components/CorrectionForm.tsx "web/src/app/gym/[slug]/page.tsx" web/tests/routes-live.test.tsx && git commit -q -m "gym profile: what it costs, trust line, correction form, nearby gyms
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
@@ -2143,7 +2144,7 @@ Under "## Verification and rollback" add:
 - [ ] **Step 4: Full check**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/web && npm test && npm run typecheck && npm run lint && NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= npm run build && NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= npm run test:smoke
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web && npm test && npm run typecheck && npm run lint && NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= npm run build && NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= npm run test:smoke
 ```
 
 Expected: everything green. Same `.env.local` caveat as Task 6 Step 8.
@@ -2151,7 +2152,7 @@ Expected: everything green. Same `.env.local` caveat as Task 6 Step 8.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms && git add web/tests/README.md CLAUDE.md docs/launch-operations.md && git commit -q -m "docs: gym_cards v3, submissions route, search routes
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience && git add web/tests/README.md CLAUDE.md docs/launch-operations.md && git commit -q -m "docs: gym_cards v3, submissions route, search routes
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
@@ -2165,20 +2166,20 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - [ ] **Step 1: Apply the migration**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/scrapers && set -a && . ./.env && set +a && .venv/bin/python run_sql.py ../supabase/migrations/0003_gym_cards_v3.sql
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/scrapers && set -a && . /Users/vinhnguyen/projects/fightgyms/scrapers/.env && set +a && /Users/vinhnguyen/projects/fightgyms/scrapers/.venv/bin/python run_sql.py ../supabase/migrations/0003_gym_cards_v3.sql
 ```
 
 - [ ] **Step 2: Verify columns, coverage and anon grants**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/scrapers && set -a && . ./.env && set +a && .venv/bin/python run_sql.py -c "select count(*) filter (where trial_cents is not null) trial, count(*) filter (where class_count > 0) scheduled, count(*) total from gym_cards where is_sample = false" && .venv/bin/python run_sql.py -c "select grantee, privilege_type from information_schema.role_table_grants where table_name = 'gym_cards' and grantee in ('anon','authenticated') order by 1,2"
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/scrapers && set -a && . /Users/vinhnguyen/projects/fightgyms/scrapers/.env && set +a && /Users/vinhnguyen/projects/fightgyms/scrapers/.venv/bin/python run_sql.py -c "select count(*) filter (where trial_cents is not null) trial, count(*) filter (where class_count > 0) scheduled, count(*) total from gym_cards where is_sample = false" && .venv/bin/python run_sql.py -c "select grantee, privilege_type from information_schema.role_table_grants where table_name = 'gym_cards' and grantee in ('anon','authenticated') order by 1,2"
 ```
 
 Expected on 2026-09-26 data: `trial 52, scheduled 40, total 192`, and `anon SELECT` present. If `anon` has no SELECT, run `grant select on gym_cards to anon, authenticated;` and re-check.
 
 - [ ] **Step 3: Run the dev server against live data and check the three entrances**
 
-Use the `web` launch configuration (`.claude/launch.json`; it reads `web/.env.local`). Then in the browser:
+Copy the ignored live config into the worktree first: `cp /Users/vinhnguyen/projects/fightgyms/web/.env.local /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/web/.env.local` (never commit it). Then start the `web` launch configuration (`.claude/launch.json`) and, in the browser:
 - `/gyms/va/arlington`: coverage line shows nonzero counts, cards show `Trial $…` where present and `Prices not listed` otherwise, "Sort" control present, "Nearby cities" lists DC/Alexandria/Falls Church with distances. Click "Nearest to me" and allow location: cards re-sort and show mile chips (if location is denied nothing changes and no error appears).
 - `/gym/<a real slug with a trial price>`: "What it costs" lists the trial, trust line shows "Listed from the gym's website · prices last verified …", "Correct this listing" form present, "Nearby gyms" lists three with distances.
 - `/`: hero search box; type "arl" → suggestion "Arlington, VA (11 gyms)"; Enter navigates. Coverage line reads "192 gyms in 63 cities across DC, MD and VA." (numbers as of 2026-09-26).
@@ -2190,19 +2191,19 @@ Use the `web` launch configuration (`.claude/launch.json`; it reads `web/.env.lo
 In the browser on a real gym page, submit: field "Something else", value `launch check — please ignore`, note `test submission, marking rejected`. Expect the thank-you page. Then:
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/scrapers && set -a && . ./.env && set +a && .venv/bin/python run_sql.py -c "select id, entity_id, field, proposed_value, status, created_at from submissions order by created_at desc limit 1"
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/scrapers && set -a && . /Users/vinhnguyen/projects/fightgyms/scrapers/.env && set +a && /Users/vinhnguyen/projects/fightgyms/scrapers/.venv/bin/python run_sql.py -c "select id, entity_id, field, proposed_value, status, created_at from submissions order by created_at desc limit 1"
 ```
 
 Confirm the row is the test, then:
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms/scrapers && set -a && . ./.env && set +a && .venv/bin/python run_sql.py -c "update submissions set status = 'rejected', note = coalesce(note, '') || ' [launch check]' where id = '<id from the previous query>' and status = 'pending'"
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience/scrapers && set -a && . /Users/vinhnguyen/projects/fightgyms/scrapers/.env && set +a && /Users/vinhnguyen/projects/fightgyms/scrapers/.venv/bin/python run_sql.py -c "update submissions set status = 'rejected', note = coalesce(note, '') || ' [launch check]' where id = '<id from the previous query>' and status = 'pending'"
 ```
 
 - [ ] **Step 5: Push and open the PR**
 
 ```bash
-cd /Users/vinhnguyen/projects/fightgyms && git push -u origin first-visit-experience && gh pr create --base master --title "first-visit experience: honest cards, near me, search, corrections" --body "$(cat <<'BODY'
+cd /Users/vinhnguyen/projects/fightgyms/.claude/worktrees/first-visit-experience && git push -u origin first-visit-experience && gh pr create --base master --title "first-visit experience: honest cards, near me, search, corrections" --body "$(cat <<'BODY'
 ## summary
 - city pages: most-complete-first order, sort by distance, nearby cities, honest coverage line
 - gym cards: first listed price instead of two empty boxes, schedule chip, distance chip; migration 0003 surfaces trial prices and class counts
