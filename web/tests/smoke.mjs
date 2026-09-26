@@ -58,6 +58,12 @@ try {
   assert.equal(index.status, 200);
   assert.equal(index.html, '{"gyms":[],"places":[]}');
   console.log("PASS /api/search-index: empty index without a backend");
+  const post = await fetch(`http://127.0.0.1:${port}/api/submissions`, {
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: "gym=x&field=other&value=y", redirect: "manual", signal: AbortSignal.timeout(15000),
+  });
+  assert.equal(post.status, 503);
+  console.log("PASS 503 /api/submissions: refuses without a live backend");
 } catch (error) {
   console.error(logs);
   throw error;

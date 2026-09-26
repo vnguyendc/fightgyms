@@ -70,6 +70,18 @@ export async function getAllGyms(): Promise<GymCard[]> {
   return rows.filter(visible).filter(live);
 }
 
+/** One public card row by slug, or null. Used by the profile and by the submissions route to resolve a gym id. */
+export async function getGymCard(slug: string): Promise<GymCard | null> {
+  const c = sb();
+  if (!c) {
+    if (!demo()) return null;
+    const card = S.gyms.find((g) => g.slug === slug);
+    return card && live(card) ? card : null;
+  }
+  const card: GymCard | null = await checked(c.from("gym_cards").select("*").eq("slug", slug).eq("is_sample", false).maybeSingle());
+  return card && visible(card) && live(card) ? card : null;
+}
+
 export async function getGym(slug: string): Promise<GymDetail | null> {
   const c = sb();
   if (!c) {
@@ -79,8 +91,8 @@ export async function getGym(slug: string): Promise<GymDetail | null> {
     if (!card || !d || !live(card)) return null;
     return { ...card, ...d };
   }
-  const card: GymCard | null = await checked(c.from("gym_cards").select("*").eq("slug", slug).eq("is_sample", false).maybeSingle());
-  if (!card || !visible(card) || !live(card)) return null;
+  const card = await getGymCard(slug);
+  if (!card) return null;
   const [gym, prices, classes, coaches, fighters, photos] = await Promise.all([
     checked(c.from("gyms").select("description, phone, affiliation, founded_year").eq("id", card.id).single()),
     checked(c.from("gym_current_prices").select("*").eq("gym_id", card.id)),
