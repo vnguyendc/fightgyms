@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ALL_GYMS_TITLE, PAGE_SIZE, allGymsDescription, allGymsPath, allGymsTitle, pageCount, pageSlice, pageWindow, sortByName } from "../src/lib/listing";
-import { gym } from "./fixtures";
+import { ALL_GYMS_TITLE, PAGE_SIZE, allGymsDescription, allGymsPath, allGymsTitle, pageCount, pageSlice, pageWindow } from "../src/lib/listing";
 
 test("all-gyms paging: 30 per page, page 1 is /gyms/all, compact numbered windows, alphabetical order", () => {
   assert.equal(PAGE_SIZE, 30);
@@ -19,8 +18,6 @@ test("all-gyms paging: 30 per page, page 1 is /gyms/all, compact numbered window
   assert.deepEqual(pageWindow(5, 20), [1, null, 3, 4, 5, 6, 7, null, 20]);
   assert.deepEqual(pageWindow(1, 20), [1, 2, 3, null, 20]);
   assert.deepEqual(pageWindow(20, 20), [1, null, 18, 19, 20]);
-  const sorted = sortByName([{ ...gym, name: "b" }, { ...gym, name: "A" }, { ...gym, name: "b", slug: "a-slug" }]);
-  assert.deepEqual(sorted.map((g) => `${g.name}:${g.slug}`), ["A:test-gym", "b:a-slug", "b:test-gym"]);
   assert.equal(allGymsTitle(1), ALL_GYMS_TITLE);
   assert.equal(allGymsTitle(2), `${ALL_GYMS_TITLE} (Page 2)`);
   assert.doesNotMatch(allGymsDescription(1, 1), /page/);

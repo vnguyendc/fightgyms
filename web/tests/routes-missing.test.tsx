@@ -11,6 +11,7 @@ import * as claim from "../src/app/claim/page";
 import * as city from "../src/app/gyms/[state]/[city]/page";
 import * as style from "../src/app/gyms/[state]/[city]/[style]/page";
 import * as profile from "../src/app/gym/[slug]/page";
+import * as search from "../src/app/search/page";
 import sitemap from "../src/app/sitemap";
 import robots from "../src/app/robots";
 
@@ -27,6 +28,7 @@ test("unconfigured directory pages have self canonicals, noindex, and explicit u
     assert.deepEqual(metadata.robots, { index: false, follow: false });
     const html = renderToStaticMarkup(await route.default());
     assert.match(html, /Directory temporarily unavailable/);
+    assert.doesNotMatch(html, / cities across /);
     assert.doesNotMatch(html, /Siam Strike|Sample Arena|verified drop-in|Every number|Tapology|most active fighters/);
   }
 });
@@ -53,4 +55,14 @@ test("claim stays noindex and says the feature is not available yet, independent
   const layout = readFileSync(new URL("../src/app/layout.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(layout, /paused/i);
   assert.match(layout, /Updates \(not available yet\)/);
+  assert.match(layout, /<SiteSearch/);
+});
+
+test("search page is noindex, escapes the query, and shows the unavailable state without a backend", async () => {
+  assert.deepEqual(search.metadata.robots, { index: false, follow: false });
+  assert.equal(search.metadata.alternates?.canonical, "https://findfightgyms.com/search");
+  const html = renderToStaticMarkup(await search.default({ params: Promise.resolve({}), searchParams: Promise.resolve({ q: "<script>alert(1)</script>" }) }));
+  assert.match(html, /Directory temporarily unavailable/);
+  assert.doesNotMatch(html, /<script>alert/);
+  assert.match(html, /name="q"/);
 });

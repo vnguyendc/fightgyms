@@ -1,5 +1,3 @@
-import type { GymCard } from "./types";
-
 /** Gyms per page on /gyms/all. Divisible by the 2- and 3-column card grids. */
 export const PAGE_SIZE = 30;
 
@@ -38,9 +36,4 @@ export function pageWindow(current: number, count: number): (number | null)[] {
     out.push(p);
   }
   return out;
-}
-
-/** Alphabetical only. Google rating fields are stored but never ranked on. */
-export function sortByName<T extends Pick<GymCard, "name" | "slug">>(gyms: T[]): T[] {
-  return [...gyms].sort((a, b) => a.name.localeCompare(b.name) || a.slug.localeCompare(b.slug));
 }
