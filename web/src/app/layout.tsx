@@ -44,6 +44,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <span>© {new Date().getFullYear()} {SITE.name}. Confirm current prices and schedules with the gym before visiting.</span>
             <span className="flex gap-4">
               <Link href="/gyms" className="hover:text-ink">All cities</Link>
+              <Link href="/gyms/all" className="hover:text-ink">All gyms</Link>
               <Link href="/claim" className="hover:text-ink">Updates (not available yet)</Link>
             </span>
           </div>

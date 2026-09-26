@@ -66,6 +66,9 @@ export default async function Home() {
             <GymCard key={g.id} gym={g} />
           ))}
         </div>
+        {gyms.length > 0 && (
+          <p className="mt-4 text-sm"><Link href="/gyms/all" className="text-muted hover:text-ink">all {gyms.length} gyms →</Link></p>
+        )}
       </section>
 
       <section className="py-8 grid gap-6 md:grid-cols-3">
