@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import CorrectionForm from "@/components/CorrectionForm";
 import { Badge, FighterBadge } from "@/components/GymCard";
 import { GymPhoto } from "@/components/GymPhoto";
 import { getAllGyms, getGym, getPlace } from "@/lib/data";
-import { DOW, fmtTime, money, photoUrl } from "@/lib/format";
-import { SITE, cityPath, jsonLd as serializeJsonLd, pageMetadata, safeExternalUrl } from "@/lib/site";
+import { DOW, fmtTime, miles, money, photoUrl } from "@/lib/format";
+import { nearestGyms } from "@/lib/geo";
+import { SITE, cityPath, jsonLd as serializeJsonLd, pageMetadata, runtimePolicy, safeExternalUrl } from "@/lib/site";
 import { LIVE_STYLES, STYLE_LABEL, TAG_LABEL, type Price } from "@/lib/types";
 
 export const revalidate = 3600;
@@ -52,14 +54,21 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
   const g = await getGym(slug);
   if (!g) notFound();
 
-  const place = g.place_slug ? await getPlace(g.place_slug) : null;
+  const [place, all] = await Promise.all([g.place_slug ? getPlace(g.place_slug) : null, getAllGyms()]);
   const cityHref = place ? cityPath(place) : "/gyms";
   const website = safeExternalUrl(g.website);
+  const live = runtimePolicy().mode === "live";
   const byDay = new Map<number, typeof g.classes>();
   for (const c of g.classes) byDay.set(c.dow, [...(byDay.get(c.dow) ?? []), c]);
   const lastVerified = g.prices.map((p) => p.verified_at).filter(Boolean).sort().at(-1);
   const order: Price["kind"][] = ["drop_in", "trial", "class_pack", "monthly", "fighter", "private"];
   const prices = [...g.prices].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+  // What a first-time visitor asks first: to try, to drop in, to join.
+  const headline = (["trial", "drop_in", "monthly"] as const).flatMap((k) => prices.filter((p) => p.kind === k && p.amount_cents != null));
+  const trial = g.trial_cents ?? headline.find((p) => p.kind === "trial")?.amount_cents ?? null;
+  const fromWebsite = g.prices.some((p) => p.verified_by === "website") || g.photos.some((p) => p.credit === "website");
+  const trust = [fromWebsite ? "Listed from the gym\u2019s website" : null, lastVerified ? `prices last verified ${lastVerified}` : null].filter(Boolean).join(" · ");
+  const nearby = nearestGyms(g, all, 3);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -72,7 +81,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
     telephone: g.phone ?? undefined,
     address: g.address ? { "@type": "PostalAddress", streetAddress: g.address, addressLocality: g.city, addressRegion: g.state } : undefined,
     geo: g.lat != null && g.lng != null ? { "@type": "GeoCoordinates", latitude: g.lat, longitude: g.lng } : undefined,
-    priceRange: g.drop_in_cents != null ? `${money(g.drop_in_cents)} drop-in` : undefined,
+    priceRange: trial != null ? `${money(trial)} trial` : g.drop_in_cents != null ? `${money(g.drop_in_cents)} drop-in` : undefined,
   };
 
   return (
@@ -116,6 +125,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
             {g.claimed && <span className="ml-3 text-accent text-base align-middle">✓ claimed</span>}
           </h1>
           <p className="mt-2 text-muted">{g.address}</p>
+          {trust && <p className="mt-1 text-xs text-muted">{trust}</p>}
           <div className="mt-3 flex flex-wrap gap-1.5">
             {g.styles.map((s) => <Badge key={s} tone="accent">{STYLE_LABEL[s] ?? s}</Badge>)}
             <FighterBadge active={g.active_fighters} pro={g.pro_fighters} />
@@ -229,10 +239,19 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
         {/* sidebar */}
         <aside className="space-y-4">
           <div className="rounded-xl border border-line bg-panel p-4 text-sm">
-            <div className="grid grid-cols-2 gap-3">
-              <div><div className="text-xs text-muted">Drop-in</div><div className="font-mono text-xl">{money(g.drop_in_cents)}</div></div>
-              <div><div className="text-xs text-muted">Monthly</div><div className="font-mono text-xl">{money(g.monthly_cents)}</div></div>
-            </div>
+            <div className="text-xs text-muted">What it costs</div>
+            {headline.length > 0 ? (
+              <ul className="mt-2 space-y-1.5">
+                {headline.map((p) => (
+                  <li key={p.kind} className="flex items-baseline justify-between gap-3">
+                    <span>{PRICE_LABEL[p.kind]}</span>
+                    <span className="font-mono text-lg">{money(p.amount_cents)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-muted">No prices listed yet.{live && <> <a href="#correct" className="underline">Know a price? Tell us.</a></>}</p>
+            )}
             <div className="mt-4 space-y-1.5">
               {website && <a href={website} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">Website ↗</a>}
               {g.instagram && <a href={`https://instagram.com/${g.instagram.replace(/^@/, "")}`} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">@{g.instagram.replace(/^@/, "")}</a>}
@@ -241,18 +260,37 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
             </div>
             {g.founded_year && <div className="mt-4 text-xs text-muted">Est. {g.founded_year}</div>}
           </div>
+          {live ? (
+            <CorrectionForm slug={g.slug} />
+          ) : (
+            <div className="rounded-xl border border-line p-4 text-sm">
+              <div className="font-medium">Corrections</div>
+              <p className="text-muted mt-1">Listing corrections are not available in this environment.</p>
+            </div>
+          )}
           <div className="rounded-xl border border-line p-4 text-sm">
-            <div className="font-medium">{g.claimed ? "Own this gym?" : "Is this your gym?"}</div>
-            <p className="text-muted mt-1">Gym claims and submissions are not available yet.</p>
-            <Link href={`/claim?gym=${g.slug}`} className="mt-3 inline-block underline">Updates status →</Link>
+            {nearby.length > 0 && (
+              <>
+                <div className="font-medium">Nearby gyms</div>
+                <ul className="mt-2 space-y-1.5">
+                  {nearby.map(({ gym: n, distanceMi }) => (
+                    <li key={n.slug} className="flex justify-between gap-3">
+                      <Link href={`/gym/${n.slug}`} className="underline hover:text-accent">{n.name}</Link>
+                      <span className="text-muted whitespace-nowrap">{miles(distanceMi)}{n.city && n.city !== g.city ? ` · ${n.city}` : ""}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {place && (
+              <>
+                <Link href={cityHref} className={`${nearby.length ? "mt-3" : ""} block underline`}>All gyms in {place.city}</Link>
+                {g.styles.filter((s) => LIVE_STYLES.includes(s)).map((s) => (
+                  <Link key={s} href={cityPath(place, s)} className="mt-2 block underline">{STYLE_LABEL[s]} in {place.city}</Link>
+                ))}
+              </>
+            )}
           </div>
-          {place && <div className="rounded-xl border border-line p-4 text-sm">
-            <div className="font-medium">More gyms in {place.city}</div>
-            <Link href={cityHref} className="mt-2 block underline">Browse all listed gyms</Link>
-            {g.styles.filter(s => LIVE_STYLES.includes(s)).map(s => (
-              <Link key={s} href={cityPath(place, s)} className="mt-2 block underline">{STYLE_LABEL[s]} in {place.city}</Link>
-            ))}
-          </div>}
         </aside>
       </div>
     </div>
