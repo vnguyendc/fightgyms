@@ -10,8 +10,8 @@ Operational gates (Vercel config, credentials, candidate pipeline, SEO verificat
 
 ## layout
 
-- `web/` — Next.js 16 app router (params are Promises; `PageProps<'/route'>` helper), Tailwind v4, `@supabase/supabase-js`. ISR 1h on all directory pages. Read `web/AGENTS.md` and `node_modules/next/dist/docs` before touching Next APIs. `web/src/lib/site.ts` owns `runtimePolicy()` (live / demo / unavailable), `pageMetadata()`, `jsonLd()`, `cityPath()`, sitemap rules. Tests in `web/tests` (see its README).
-- `supabase/migrations/0001_init.sql` — schema + RLS + views. `0002_photos.sql` — `gym_photos` + `gym-photos` storage bucket, adds `photo_path` to `gym_cards`. `supabase/seed.sql` — 6 fictional demo gyms flagged `is_sample`.
+- `web/` — Next.js 16 app router (params are Promises; `PageProps<'/route'>` helper), Tailwind v4, `@supabase/supabase-js`. ISR 1h on all directory pages. Read `web/AGENTS.md` and `node_modules/next/dist/docs` before touching Next APIs. `web/src/lib/site.ts` owns `runtimePolicy()` (live / demo / unavailable), `pageMetadata()`, `jsonLd()`, `cityPath()`, sitemap rules. `lib/geo.ts` (distance, completeness, coverage), `lib/format.ts` (client-safe display helpers), `lib/search.ts` (index matcher), `lib/submissions.ts` (correction parsing + pending insert). Tests in `web/tests` (see its README).
+- `supabase/migrations/0001_init.sql` — schema + RLS + views. `0002_photos.sql` — `gym_photos` + `gym-photos` storage bucket, adds `photo_path` to `gym_cards`. `0003_gym_cards_v3.sql` — adds `trial_cents`, `class_count` to `gym_cards`. `0004_submissions_policy.sql` — pending-only, bounded insert policy on `submissions`. `supabase/seed.sql` — 6 fictional demo gyms flagged `is_sample`.
 - `scrapers/` — python 3.12. `seed_places.py` (Google Places → gyms; legacy, review provider terms before reuse), `extract_site.py` (crawl → Claude Haiku structured output → validated prices/classes), `fetch_photos.py` (site images → Haiku vision filter → storage), `public_candidates.py` (reviewed public-source candidate queue/importer, the intended recurring discovery path), `jev_triage.py` (optional shadow triage; never publishes), `run_sql.py` (migrations / one-off sql without psql). Tests: `python -m unittest discover -s scrapers/tests` from the repo root.
 
 ## how it runs
@@ -33,7 +33,7 @@ Operational gates (Vercel config, credentials, candidate pipeline, SEO verificat
 
 ## next (in order)
 
-1. `web/src/app/api/submissions/route.ts` — insert into `submissions` from the `/claim` form; then magic-link auth + `claims`; then photo upload on `/claim` (storage policy for verified claimants already in 0002).
+1. magic-link auth + `claims`; then photo upload on `/claim` (storage policy for verified claimants already in 0002). `POST /api/submissions` (pending corrections from gym pages) is done.
 2. `scrapers/enrich_tapology.py` — gym → fighters with records; then `select refresh_gym_fighter_stats()`.
 3. Templates: `/gyms/[state]/[city]/drop-in`, `/beginner`, `/fighter-gyms`; `/fighters/[slug]`, `/coaches/[slug]`.
 4. Cost-by-city editorial pages backed by `gym_current_prices`.

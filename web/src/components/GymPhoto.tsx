@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { photoUrl } from "@/lib/data";
+import { photoUrl } from "@/lib/format";
 import { STYLE_LABEL, type Style } from "@/lib/types";
 
 /** Fills its (relatively positioned, sized) parent. */

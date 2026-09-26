@@ -7,6 +7,7 @@ import * as profile from "../src/app/gym/[slug]/page";
 import * as home from "../src/app/page";
 import * as cities from "../src/app/gyms/page";
 import * as events from "../src/app/events/page";
+import * as search from "../src/app/search/page";
 import sitemap from "../src/app/sitemap";
 import robots from "../src/app/robots";
 import { gym, place } from "./fixtures";
@@ -49,9 +50,13 @@ test("populated routes have precise self canonicals and truthful metadata; empty
   await assert.rejects(() => style.default(empty), /NEXT_HTTP_ERROR_FALLBACK;404/);
   const urls = (await sitemap()).map(e => e.url);
   assert.ok(urls.includes("https://findfightgyms.com/gym/test-gym"));
-  assert.ok(!urls.some(url => /kickboxing$|\/events$|\/claim$/.test(url)));
+  assert.ok(!urls.some(url => /kickboxing$|\/events$|\/claim$|\/search$/.test(url)));
   assert.equal(robots().sitemap, "https://findfightgyms.com/sitemap.xml");
   const html = renderToStaticMarkup(await home.default());
+  assert.match(html, /1 gym in 1 city across VA\./);
+  assert.match(html, /Most complete listings/);
+  assert.match(html, /name="q"/);
+  assert.doesNotMatch(html, /Explore the directory|listed alphabetically/);
   assert.match(html, /href="\/gyms\/va\/arlington\/muay-thai"/);
   assert.doesNotMatch(html, /href="\/gyms\/va\/arlington\/kickboxing"/);
 });
@@ -59,7 +64,7 @@ test("populated routes have precise self canonicals and truthful metadata; empty
 test("profiles use escaped, rating-free JSON-LD and preserve usable city links without bogus claims", async t => {
   const hostile = { ...gym, name: '</script><script>alert("test")</script>', website: "javascript:alert(1)" };
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
-    if (String(input).includes("/gym_cards")) return Response.json(hostile);
+    if (String(input).includes("/gym_cards")) return Response.json(String(input).includes("slug=eq.") ? hostile : [hostile]);
     return fixtureResponse(input);
   });
   const html = renderToStaticMarkup(await profile.default(gymProps));
@@ -69,7 +74,11 @@ test("profiles use escaped, rating-free JSON-LD and preserve usable city links w
   assert.equal(schema.url, "https://findfightgyms.com/gym/test-gym");
   assert.equal(schema.aggregateRating, undefined);
   assert.doesNotMatch(html, /★|Google reviews|javascript:|Claim free|we&#x27;ll verify|Monthly unlimited|paused/i);
-  assert.match(html, /Gym claims and submissions are not available yet\./);
+  assert.doesNotMatch(html, /not available yet/);
+  assert.match(html, /<form[^>]*action="\/api\/submissions"[^>]*method="post"/);
+  assert.match(html, /name="gym" value="test-gym"/);
+  assert.match(html, /name="website_url"/);
+  assert.match(html, /What it costs[\s\S]*No prices listed yet/);
   assert.match(html, /href="\/gyms\/va\/arlington"/);
   assert.match(html, /href="\/gyms\/va\/arlington\/muay-thai"/);
 });
@@ -87,9 +96,41 @@ test("preview and demo routes stay noindex even with content; sitemap is empty",
     const sampleProps = { ...gymProps, params: Promise.resolve({ slug: "sample-siam-strike-arlington-va" }) };
     assert.deepEqual((await profile.generateMetadata(sampleProps)).robots, { index: false, follow: false });
     assert.match(renderToStaticMarkup(await profile.default(sampleProps)), /Sample listing/);
+    const demoHtml = renderToStaticMarkup(await profile.default(sampleProps));
+    assert.doesNotMatch(demoHtml, /api\/submissions/);
+    assert.match(demoHtml, /not available in this environment/);
     assert.deepEqual(await sitemap(), []);
   } finally {
     process.env.VERCEL_ENV = "production";
     delete process.env.SHOW_SAMPLE;
   }
+});
+
+test("search page lists matching cities and gyms, and says so when nothing matches", async t => {
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => fixtureResponse(input));
+  const page = (q: string | string[]) => search.default({ params: Promise.resolve({}), searchParams: Promise.resolve({ q }) });
+  let html = renderToStaticMarkup(await page("test"));
+  assert.match(html, /href="\/gym\/test-gym"/);
+  html = renderToStaticMarkup(await page("arl"));
+  assert.match(html, /href="\/gyms\/va\/arlington"/);
+  html = renderToStaticMarkup(await page(["zzz", "test"]));
+  assert.match(html, /No listed gyms or cities match/);
+  assert.doesNotMatch(html, /href="\/gym\/test-gym"/);
+});
+
+test("profiles show what it costs, where the facts came from, and the nearest gyms", async t => {
+  const near = { ...gym, id: "near", slug: "near-gym", name: "Near Gym", lat: 38.8827, lng: -77.0831 };
+  const trial = { gym_id: gym.id, kind: "trial", amount_cents: 2000, currency: "usd", contract_months: null, free_trial: null, notes: null, verified_at: "2026-09-01", verified_by: "website" };
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+    const u = String(input instanceof Request ? input.url : input);
+    if (u.includes("/gym_current_prices")) return Response.json([trial]);
+    if (u.includes("/gym_cards")) return Response.json(u.includes("slug=eq.") ? gym : [gym, near]);
+    return fixtureResponse(input);
+  });
+  const html = renderToStaticMarkup(await profile.default(gymProps));
+  assert.match(html, /What it costs[\s\S]{0,400}Intro \/ trial[\s\S]{0,300}from gym website[\s\S]{0,300}\$20/);
+  assert.match(html, /Listed from the gym’s website · prices last verified 2026-09-01/);
+  assert.match(html, /Nearby gyms[\s\S]*href="\/gym\/near-gym"[\s\S]*mi</);
+  const schema = JSON.parse(html.match(/type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
+  assert.equal(schema.priceRange, "$20 trial");
 });

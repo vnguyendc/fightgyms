@@ -4,6 +4,9 @@ import sample from "@/data/sample.json";
 import { runtimePolicy } from "./site";
 import { LIVE_STYLES, type Event, type GymCard, type GymDetail, type Photo, type Place, type Style } from "./types";
 
+// Display helpers live in ./format so client components never import this module (it bundles supabase-js and sample.json).
+export { DOW, fmtTime, money, photoUrl } from "./format";
+
 function sb(): SupabaseClient | null {
   if (runtimePolicy().mode !== "live") return null;
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
@@ -67,6 +70,18 @@ export async function getAllGyms(): Promise<GymCard[]> {
   return rows.filter(visible).filter(live);
 }
 
+/** One public card row by slug, or null. Used by the profile and by the submissions route to resolve a gym id. */
+export async function getGymCard(slug: string): Promise<GymCard | null> {
+  const c = sb();
+  if (!c) {
+    if (!demo()) return null;
+    const card = S.gyms.find((g) => g.slug === slug);
+    return card && live(card) ? card : null;
+  }
+  const card: GymCard | null = await checked(c.from("gym_cards").select("*").eq("slug", slug).eq("is_sample", false).maybeSingle());
+  return card && visible(card) && live(card) ? card : null;
+}
+
 export async function getGym(slug: string): Promise<GymDetail | null> {
   const c = sb();
   if (!c) {
@@ -76,8 +91,8 @@ export async function getGym(slug: string): Promise<GymDetail | null> {
     if (!card || !d || !live(card)) return null;
     return { ...card, ...d };
   }
-  const card: GymCard | null = await checked(c.from("gym_cards").select("*").eq("slug", slug).eq("is_sample", false).maybeSingle());
-  if (!card || !visible(card) || !live(card)) return null;
+  const card = await getGymCard(slug);
+  if (!card) return null;
   const [gym, prices, classes, coaches, fighters, photos] = await Promise.all([
     checked(c.from("gyms").select("description, phone, affiliation, founded_year").eq("id", card.id).single()),
     checked(c.from("gym_current_prices").select("*").eq("gym_id", card.id)),
@@ -107,22 +122,4 @@ export async function getUpcomingEvents(state?: string): Promise<Event[]> {
   const rows = await checked(q) as (Event & { places?: { state: string } })[] | null;
   return (rows ?? []).filter((e) => !e.slug.startsWith("sample-") && e.date && e.date >= today &&
     (!state || e.places?.state === state));
-}
-
-/** Public URL for a photo. Sample data uses site-relative paths under /public. */
-export function photoUrl(path: string): string {
-  return path.startsWith("/") ? path : `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/gym-photos/${path}`;
-}
-
-export function money(cents: number | null | undefined): string {
-  if (cents == null) return "—";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: cents % 100 === 0 ? 0 : 2, maximumFractionDigits: 2 }).format(cents / 100);
-}
-
-export const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-export function fmtTime(t: string): string {
-  const [h, m] = t.split(":").map(Number);
-  const ampm = h >= 12 ? "pm" : "am";
-  const hh = h % 12 === 0 ? 12 : h % 12;
-  return m ? `${hh}:${String(m).padStart(2, "0")}${ampm}` : `${hh}${ampm}`;
 }

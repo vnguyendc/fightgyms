@@ -11,3 +11,6 @@ supabase/.temp/
 # Local pilot inputs/reports must not be accidentally published.
 scrapers/corpora/
 scrapers/reports/
+
+# superpowers plan-execution scratch (ledger, briefs, review packages)
+.superpowers/

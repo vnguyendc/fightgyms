@@ -89,6 +89,10 @@ export interface GymCard {
   state: string | null;
   drop_in_cents: number | null;
   monthly_cents: number | null;
+  /** latest verified trial / intro price; null when the gym has none listed */
+  trial_cents: number | null;
+  /** rows in `classes`; 0 means no schedule listed */
+  class_count: number;
   active_fighters: number;
   pro_fighters: number;
   photo_path: string | null;
