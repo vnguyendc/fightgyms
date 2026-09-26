@@ -94,5 +94,15 @@ class Prepare(unittest.TestCase):
         self.assertEqual((w, h), (800, 600))
 
 
+
+class FilenameAlt(unittest.TestCase):
+    def test_filename_like_alts_are_rejected(self):
+        from scrapers.fetch_photos import FILENAME_ALT
+        for bad in ["gym2 3.png", "IMG_4021", "hero-1", "add5.PNG", "DSC00012.jpeg"]:
+            self.assertTrue(FILENAME_ALT.search(bad), bad)
+        for good in ["the mats", "Coach Nok holding pads", "Fight team 2025"]:
+            self.assertFalse(FILENAME_ALT.search(good), good)
+
+
 if __name__ == "__main__":
     unittest.main()

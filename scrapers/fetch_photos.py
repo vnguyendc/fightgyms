@@ -48,6 +48,7 @@ MAX_KEEP = 6
 MAX_BYTES = 10 * 1024 * 1024
 GALLERY = re.compile(r"gallery|photos|facility|facilities|tour|our-gym|the-gym", re.I)
 NOISE = re.compile(r"logo|icon|sprite|favicon|badge|pixel|tracking|avatar|placeholder|spacer|blank\.|\.svg($|\?)|\.gif($|\?)", re.I)
+FILENAME_ALT = re.compile(r"\.(png|jpe?g|webp|gif|svg)$|^[\w-]+$", re.I)  # "gym2 3.png", "IMG_4021", "hero-1"
 KEEP = {"gym_space", "training", "team"}
 LIVE_STYLES = ["muay_thai", "kickboxing"]  # mirror of web/src/lib/types.ts LIVE_STYLES; public gyms go first
 PRIMARY_ORDER = ["gym_space", "training", "team"]  # a portrait never leads a listing
@@ -311,7 +312,8 @@ def process_site(website: str, gym_name: str = "") -> tuple[list[dict], list[dic
             cls = classify(llm, data)
             v.update({"category": cls.get("category"), "model_alt": cls.get("alt"), "width": w, "height": h})
             if cls.get("category") in KEEP and len(kept) < MAX_KEEP:
-                kept.append({**v, "hash": digest, "data": data, "alt_text": c["alt"] or cls.get("alt") or gym_name or None})
+                site_alt = c["alt"] if c["alt"] and not FILENAME_ALT.search(c["alt"].strip()) else None
+                kept.append({**v, "hash": digest, "data": data, "alt_text": site_alt or cls.get("alt") or gym_name or None})
             else:
                 v["dropped"] = "category" if cls.get("category") not in KEEP else "max_keep"
             verdicts.append(v)
