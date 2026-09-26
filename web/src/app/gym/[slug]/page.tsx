@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, FighterBadge } from "@/components/GymCard";
 import { GymPhoto } from "@/components/GymPhoto";
-import { DOW, fmtTime, getAllGyms, getGym, getPlace, money, photoUrl } from "@/lib/data";
+import { getAllGyms, getGym, getPlace } from "@/lib/data";
+import { DOW, fmtTime, money, photoUrl } from "@/lib/format";
 import { SITE, cityPath, jsonLd as serializeJsonLd, pageMetadata, safeExternalUrl } from "@/lib/site";
 import { LIVE_STYLES, STYLE_LABEL, TAG_LABEL, type Price } from "@/lib/types";
 

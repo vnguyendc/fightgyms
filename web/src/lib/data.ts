@@ -4,6 +4,9 @@ import sample from "@/data/sample.json";
 import { runtimePolicy } from "./site";
 import { LIVE_STYLES, type Event, type GymCard, type GymDetail, type Photo, type Place, type Style } from "./types";
 
+// Display helpers live in ./format so client components never import this module (it bundles supabase-js and sample.json).
+export { DOW, fmtTime, money, photoUrl } from "./format";
+
 function sb(): SupabaseClient | null {
   if (runtimePolicy().mode !== "live") return null;
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
@@ -107,22 +110,4 @@ export async function getUpcomingEvents(state?: string): Promise<Event[]> {
   const rows = await checked(q) as (Event & { places?: { state: string } })[] | null;
   return (rows ?? []).filter((e) => !e.slug.startsWith("sample-") && e.date && e.date >= today &&
     (!state || e.places?.state === state));
-}
-
-/** Public URL for a photo. Sample data uses site-relative paths under /public. */
-export function photoUrl(path: string): string {
-  return path.startsWith("/") ? path : `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/gym-photos/${path}`;
-}
-
-export function money(cents: number | null | undefined): string {
-  if (cents == null) return "—";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: cents % 100 === 0 ? 0 : 2, maximumFractionDigits: 2 }).format(cents / 100);
-}
-
-export const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-export function fmtTime(t: string): string {
-  const [h, m] = t.split(":").map(Number);
-  const ampm = h >= 12 ? "pm" : "am";
-  const hh = h % 12 === 0 ? 12 : h % 12;
-  return m ? `${hh}:${String(m).padStart(2, "0")}${ampm}` : `${hh}${ampm}`;
 }

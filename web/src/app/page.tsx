@@ -1,6 +1,7 @@
 import Link from "next/link";
 import GymCard from "@/components/GymCard";
 import { getAllGyms, getPlaces } from "@/lib/data";
+import { placeCounts } from "@/lib/geo";
 import { SITE, pageMetadata, cityPath } from "@/lib/site";
 import DirectoryState from "@/components/DirectoryState";
 import { LIVE_STYLES, STYLE_LABEL } from "@/lib/types";
@@ -15,8 +16,7 @@ export async function generateMetadata() {
 export default async function Home() {
   const [places, gyms] = await Promise.all([getPlaces(), getAllGyms()]);
   const top = [...gyms].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 6);
-  const counts = new Map<string, number>();
-  for (const g of gyms) counts.set(g.place_slug ?? "", (counts.get(g.place_slug ?? "") ?? 0) + 1);
+  const counts = placeCounts(gyms);
   const cities = places.filter((p) => counts.get(p.slug)).sort((a, b) => (counts.get(b.slug) ?? 0) - (counts.get(a.slug) ?? 0));
 
   return (

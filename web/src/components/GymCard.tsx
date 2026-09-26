@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { GymPhoto, PhotoFallback } from "@/components/GymPhoto";
-import { money } from "@/lib/data";
+import { money } from "@/lib/format";
 import { STYLE_LABEL, TAG_LABEL, type GymCard as GymCardT } from "@/lib/types";
 
 export function Badge({ children, tone = "line" }: { children: React.ReactNode; tone?: "line" | "accent" | "gold" }) {

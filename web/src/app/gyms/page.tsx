@@ -2,6 +2,7 @@ import Link from "next/link";
 import { pageMetadata } from "@/lib/site";
 import DirectoryState from "@/components/DirectoryState";
 import { getAllGyms, getPlaces } from "@/lib/data";
+import { placeCounts } from "@/lib/geo";
 
 export const revalidate = 3600;
 export async function generateMetadata() {
@@ -11,8 +12,7 @@ export async function generateMetadata() {
 
 export default async function GymsIndex() {
   const [places, gyms] = await Promise.all([getPlaces(), getAllGyms()]);
-  const counts = new Map<string, number>();
-  for (const g of gyms) counts.set(g.place_slug ?? "", (counts.get(g.place_slug ?? "") ?? 0) + 1);
+  const counts = placeCounts(gyms);
   const byState = new Map<string, typeof places>();
   for (const p of places) {
     if (!counts.get(p.slug)) continue;
