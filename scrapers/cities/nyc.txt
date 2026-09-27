@@ -1,0 +1,18 @@
+# City, ST — one per line. New York City's five boroughs, by the postal city gyms print
+# (Manhattan is New York; Queens addresses usually name the neighbourhood)
+Astoria, NY
+Bayside, NY
+Bronx, NY
+Brooklyn, NY
+Elmhurst, NY
+Flushing, NY
+Forest Hills, NY
+Jackson Heights, NY
+Long Island City, NY
+New York, NY
+Ozone Park, NY
+Queens, NY
+Rego Park, NY
+Staten Island, NY
+Whitestone, NY
+Woodside, NY
