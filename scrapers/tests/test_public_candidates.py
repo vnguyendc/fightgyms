@@ -128,6 +128,23 @@ class Validation(unittest.TestCase):
                     pipeline.validate(record, now=NOW)
                 self.assertEqual(str(error.exception), "unsupported_value")
 
+    def test_no_gi_is_a_grappling_class_not_a_negation(self):
+        from scrapers import public_candidates as pipeline
+        for sentence in ("We offer Gi, No-Gi and Muay Thai classes.", "We offer Gi, No Gi and Muay Thai classes."):
+            with self.subTest(sentence=sentence):
+                record = candidate()
+                record["pages"][0]["text"] += " " + sentence
+                record["evidence"]["styles"]["muay_thai"]["quote"] = sentence
+                self.assertIn("muay_thai", pipeline.validate(record, now=NOW)["fields"]["styles"])
+        for sentence in ("We offer no Muay Thai classes.", "No Muay Thai classes are offered."):
+            with self.subTest(sentence=sentence):
+                record = candidate()
+                record["pages"][0]["text"] += " " + sentence
+                record["evidence"]["styles"]["muay_thai"]["quote"] = sentence
+                with self.assertRaises(pipeline.Rejected) as error:
+                    pipeline.validate(record, now=NOW)
+                self.assertEqual(str(error.exception), "unsupported_value")
+
     def test_unrelated_negative_sentence_does_not_disqualify_positive_evidence(self):
         from scrapers import public_candidates as pipeline
         for selected in ("offer Muay Thai classes", "We offer Muay Thai classes."):

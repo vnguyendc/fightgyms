@@ -27,7 +27,8 @@ SENSITIVE = re.compile(r"password[\"']?\s*[:=]|secret[\"']?\s*[:=]|token[\"']?\s
 # spelled-out names for the states that have a region city list ("Rockaway, New Jersey 07866")
 STATE_NAMES = {"DC": ("District of Columbia", "D C"), "MD": ("Maryland",), "VA": ("Virginia",),
                "NY": ("New York",), "NJ": ("New Jersey",), "PA": ("Pennsylvania",)}
-UNCERTAIN = re.compile(r"\b(?:not|no|never|closed|closing|ceased|formerly|previously|planned|"
+# "No-Gi" is a grappling class, not a negation
+UNCERTAIN = re.compile(r"\b(?:not|no(?![\s-]gi\b)|never|closed|closing|ceased|formerly|previously|planned|"
                        r"discontinued|unavailable|might|maybe)\b|coming soon|used to|do not|don't", re.I)
 
 
