@@ -43,3 +43,10 @@ test("a discipline listing is distinct only when it is a strict, non-empty subse
   assert.equal(site.distinctStyleListing([mt], "kickboxing"), false, "no gym has it: nothing to list");
   assert.equal(site.distinctStyleListing([], "muay_thai"), false);
 });
+
+test("layout robots metadata is emitted only to forbid indexing; indexable builds rely on the default so not-found pages carry a single directive", () => {
+  assert.equal(typeof site.layoutRobots, "function");
+  assert.equal(site.layoutRobots({ mode: "live", indexable: true }), undefined);
+  assert.deepEqual(site.layoutRobots({ mode: "live", indexable: false }), { index: false, follow: false });
+  assert.deepEqual(site.layoutRobots({ mode: "unavailable", indexable: false }), { index: false, follow: false });
+});

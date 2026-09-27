@@ -10,6 +10,8 @@ import * as all from "../src/app/gyms/all/page";
 import * as allPage from "../src/app/gyms/all/page/[n]/page";
 import * as events from "../src/app/events/page";
 import * as search from "../src/app/search/page";
+import * as about from "../src/app/about/page";
+import * as privacy from "../src/app/privacy/page";
 import sitemap from "../src/app/sitemap";
 import robots from "../src/app/robots";
 import { gym, place } from "./fixtures";
@@ -77,9 +79,12 @@ test("profiles use escaped, rating-free JSON-LD and preserve usable city links w
     return fixtureResponse(input);
   });
   const html = renderToStaticMarkup(await profile.default(gymProps));
-  assert.equal((html.match(/<script/g) ?? []).length, 1);
-  const schema = JSON.parse(html.match(/type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
+  assert.equal((html.match(/<script/g) ?? []).length, 2, "LocalBusiness + BreadcrumbList, nothing else");
+  const [schema, crumbs] = [...html.matchAll(/type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
   assert.equal(schema.name, hostile.name);
+  assert.equal(crumbs["@type"], "BreadcrumbList");
+  assert.deepEqual(crumbs.itemListElement.map((i: { name: string; item: string }) => [i.name, i.item]),
+    [["Gyms", "https://findfightgyms.com/gyms"], ["Arlington, VA", "https://findfightgyms.com/gyms/va/arlington"], [hostile.name, "https://findfightgyms.com/gym/test-gym"]]);
   assert.equal(schema.url, "https://findfightgyms.com/gym/test-gym");
   assert.equal(schema.aggregateRating, undefined);
   assert.doesNotMatch(html, /★|Google reviews|javascript:|Claim free|we&#x27;ll verify|Monthly unlimited|paused/i);
@@ -241,4 +246,24 @@ test("profiles show what it costs, where the facts came from, and the nearest gy
   assert.match(html, /Nearby gyms[\s\S]*href="\/gym\/near-gym"[\s\S]*mi</);
   const schema = JSON.parse(html.match(/type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
   assert.equal(schema.priceRange, "$20 trial");
+});
+
+test("about and privacy pages are indexable, self-canonical, and state the method and the data handling plainly", async () => {
+  for (const [route, path] of [[about, "/about"], [privacy, "/privacy"]] as const) {
+    const metadata = await route.generateMetadata();
+    assert.equal(metadata.alternates?.canonical, `https://findfightgyms.com${path}`);
+    assert.deepEqual(metadata.robots, { index: true, follow: true });
+  }
+  const aboutHtml = renderToStaticMarkup(await about.default());
+  assert.match(aboutHtml, /<h1[^>]*>About FightGyms/);
+  assert.match(aboutHtml, /manually checked[\s\S]*verified by phone[\s\S]*confirmed by gym[\s\S]*from gym website[\s\S]*reported by a member/, "verification tiers, in the order the site ranks them");
+  assert.match(aboutHtml, /never (invent|estimate)/i);
+  assert.match(aboutHtml, /href="\/privacy"/);
+  assert.doesNotMatch(aboutHtml, /Google rating|reviews|★/);
+  const privacyHtml = renderToStaticMarkup(await privacy.default());
+  assert.match(privacyHtml, /<h1[^>]*>Privacy/);
+  assert.match(privacyHtml, /contact email/i);
+  assert.match(privacyHtml, /Vercel Web Analytics/);
+  assert.doesNotMatch(privacyHtml, /Google Analytics|GA4|cookie banner/i, "must not describe tooling the site does not run");
+  assert.match(privacyHtml, /do not set cookies/);
 });

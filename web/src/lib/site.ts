@@ -94,6 +94,20 @@ export function pageMetadata(path: string, title: string, description: string, h
     robots: { index, follow: index } };
 }
 
+/** Next already adds `noindex` to not-found pages; emitting an explicit index directive as well leaves two conflicting tags. */
+export function layoutRobots(policy: RuntimePolicy): Metadata["robots"] {
+  return policy.indexable ? undefined : { index: false, follow: false };
+}
+
+/** BreadcrumbList for a site-relative trail; the last item is the current page. */
+export function breadcrumbJsonLd(trail: { name: string; path: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: trail.map((t, i) => ({ "@type": "ListItem", position: i + 1, name: t.name, item: `${SITE.url}${t.path}` })),
+  };
+}
+
 export const SITE = {
   name: process.env.NEXT_PUBLIC_SITE_NAME ?? "FightGyms",
   tagline: "Find Muay Thai & kickboxing gyms.",

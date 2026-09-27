@@ -40,6 +40,25 @@ try {
     assert.match(html, path.startsWith("/claim") ? /not available yet/ : /Directory temporarily unavailable/);
     console.log(`PASS ${status} ${path}: self canonical, noindex, honest state`);
   }
+  for (const path of ["/about", "/privacy"]) {
+    const { status, html } = await request(path);
+    assert.equal(status, 200, path);
+    assert.match(html, /<meta name="robots" content="noindex, nofollow"/);
+    assert.ok(html.includes(`<link rel="canonical" href="https://findfightgyms.com${path}"`), path);
+    assert.doesNotMatch(html, /Directory temporarily unavailable/);
+    console.log(`PASS ${status} ${path}: static page renders without a backend`);
+  }
+  const homeHtml = (await request("/")).html;
+  assert.match(homeHtml, /href="\/about"/);
+  assert.match(homeHtml, /href="\/privacy"/);
+  assert.match(homeHtml, /"@type":"WebSite"/);
+  assert.match(homeHtml, /"@type":"Organization"/);
+  assert.match(homeHtml, /"@type":"SearchAction"/);
+  console.log("PASS /: footer links about + privacy; site JSON-LD present");
+  const missing = await request("/no-such-page");
+  assert.equal(missing.status, 404);
+  assert.equal((missing.html.match(/<meta name="robots"/g) ?? []).length, 1, "one robots directive on 404 pages");
+  console.log("PASS 404: single robots directive");
   for (const path of ["/gym/sample-siam-strike-arlington-va", "/gyms/va/arlington", "/gyms/va/arlington/muay-thai", "/gyms/all/page/2"]) {
     const { status, html } = await request(path);
     assert.equal(status, 404, path);

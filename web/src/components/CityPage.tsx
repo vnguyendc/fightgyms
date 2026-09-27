@@ -2,7 +2,7 @@ import Link from "next/link";
 import GymList from "@/components/GymList";
 import { miles } from "@/lib/format";
 import { NEARBY_RADIUS_MI, byCompleteness, coverage, coverageLine, listingSummary, type NearbyPlace } from "@/lib/geo";
-import { SITE, cityPath, distinctStyles, jsonLd as serializeJsonLd } from "@/lib/site";
+import { SITE, breadcrumbJsonLd, cityPath, distinctStyles, jsonLd as serializeJsonLd } from "@/lib/site";
 import { STYLE_LABEL, type GymCard as GymCardT, type Place, type Style } from "@/lib/types";
 
 function NearbyCities({ city, nearby }: { city: string; nearby: NearbyPlace[] }) {
@@ -45,9 +45,13 @@ export default function CityPage({ place, gyms, style, nearby = [], cityGyms = g
     })),
   };
 
+  const trail = [{ name: "Gyms", path: "/gyms" }, { name: `${place.city}, ${place.state}`, path: base }];
+  if (style) trail.push({ name: STYLE_LABEL[style], path: cityPath(place, style) });
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd(trail)) }} />
       <nav className="text-sm text-muted mb-4">
         <Link href="/gyms" className="hover:text-ink">Gyms</Link> / {place.state} /{" "}
         {style ? <Link href={base} className="hover:text-ink">{place.city}</Link> : place.city}
