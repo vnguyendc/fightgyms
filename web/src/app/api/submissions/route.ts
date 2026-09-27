@@ -1,39 +1,30 @@
-import { track } from "@vercel/analytics/server";
+import { recordEvent } from "@/lib/analytics";
+import { redirectWith, requestClient, userOf } from "@/lib/auth";
 import { getGymCard } from "@/lib/data";
-import { MAX_BODY, readBody } from "@/lib/forms";
+import { readBody, tooLarge } from "@/lib/forms";
 import { runtimePolicy } from "@/lib/site";
 import { insertSubmission, parseSubmission } from "@/lib/submissions";
 
 /**
- * The one conversion worth counting. Field name only, never the value or email. Headers go to Vercel's own
- * first-party insights endpoint so the event joins the visitor's session; a tracking failure never fails the request.
- */
-async function recordSubmission(field: string, request: Request) {
-  if (!process.env.VERCEL) return; // off Vercel the SDK only logs a warning; skip the round trip entirely
-  try {
-    await track("correction_submitted", { field }, { headers: request.headers });
-  } catch (error) {
-    console.warn("analytics: correction_submitted not recorded", error instanceof Error ? error.message : error);
-  }
-}
-
-/**
  * Files a pending correction from a gym page. Never publishes, never updates directory tables,
- * never runs outside the live directory. Redirects are 303 so the browser GETs /claim after a POST.
+ * never runs outside the live directory. A signed-in visitor's row carries their user id; anyone else stays
+ * anonymous, including a visitor with a broken cookie. Redirects are 303 so the browser GETs /claim after a POST.
  */
 export async function POST(request: Request) {
   if (runtimePolicy().mode !== "live") return Response.json({ error: "Submissions are not available in this environment." }, { status: 503 });
-  if (Number(request.headers.get("content-length") ?? 0) > MAX_BODY) return Response.json({ error: "Submission too large." }, { status: 413 });
-  const back = (query: string) => Response.redirect(new URL(`/claim?${query}`, request.url), 303);
+  if (tooLarge(request)) return Response.json({ error: "Submission too large." }, { status: 413 });
+  const back = (query: string) => redirectWith(new URL(`/claim?${query}`, request.url));
   const parsed = parseSubmission(await readBody(request));
   if (!parsed.ok) return back(`error=${parsed.error}`);
   if (parsed.honeypot) return back(parsed.gym ? `submitted=1&gym=${parsed.gym}` : "submitted=1");
   try {
     const card = await getGymCard(parsed.input.gym);
     if (!card) return back(`error=notfound&gym=${parsed.input.gym}`);
-    await insertSubmission(card.id, parsed.input);
-    await recordSubmission(parsed.input.field, request);
-    return back(`submitted=1&gym=${card.slug}`);
+    const bound = requestClient(request);
+    const user = bound && request.headers.get("cookie") ? await userOf(bound.client) : null;
+    await insertSubmission(card.id, parsed.input, user && bound ? { client: bound.client, user } : undefined);
+    await recordEvent("correction_submitted", { field: parsed.input.field }, request);
+    return redirectWith(new URL(`/claim?submitted=1&gym=${card.slug}`, request.url), bound?.pending);
   } catch {
     return back(`error=1&gym=${parsed.input.gym}`);
   }

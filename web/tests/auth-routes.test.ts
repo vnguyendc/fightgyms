@@ -41,7 +41,7 @@ test("link route: sends the otp with the site redirect and reports send failures
     let status = 200;
     const calls = stub(t, () => status === 200 ? Response.json({}) : new Response(JSON.stringify({ code: 429, msg: "For security purposes, you can only request this after 60 seconds." }), { status: 429, headers: { "content-type": "application/json" } }));
     const route = await import("../src/app/api/auth/link/route");
-    let res = await route.POST(post("/api/auth/link", { email: "owner@siamstrike.example", gym: "test-gym" }));
+    const res = await route.POST(post("/api/auth/link", { email: "owner@siamstrike.example", gym: "test-gym" }));
     assert.equal(res.status, 303);
     assert.equal(loc(res), "/claim?sent=1&gym=test-gym");
     const otp = calls.find((c) => c.url.includes("/auth/v1/otp"));

@@ -1,4 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SessionUser } from "./auth";
 import { str } from "./forms";
 import { safeExternalUrl } from "./site";
 
@@ -65,9 +66,13 @@ export function parseSubmission(body: Record<string, unknown>): ParsedSubmission
   return { ok: true, honeypot: false, input: { gym: slug, field, value, cents, note: note || null, email: email || null } };
 }
 
-/** One pending row through the public anon key (RLS allows insert only). Nothing is published or updated. */
-export async function insertSubmission(entityId: string, input: SubmissionInput): Promise<void> {
-  const client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+/**
+ * One pending row. Anonymous: the anon key, body unchanged (rls allows insert only). Signed in: the user's own
+ * client, so 0004's `submitted_by = auth.uid()` check passes; the session email fills contact_email when the form
+ * left it empty (the database stamps the verified email regardless).
+ */
+export async function insertSubmission(entityId: string, input: SubmissionInput, session?: { client: SupabaseClient; user: SessionUser }): Promise<void> {
+  const client = session?.client ?? createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
   const { error } = await client.from("submissions").insert({
@@ -76,7 +81,8 @@ export async function insertSubmission(entityId: string, input: SubmissionInput)
     field: input.field,
     proposed_value: { value: input.value, cents: input.cents },
     note: input.note,
-    contact_email: input.email,
+    contact_email: input.email ?? session?.user.email ?? null,
+    ...(session ? { submitted_by: session.user.id } : {}),
     status: "pending",
   });
   if (error) throw new Error("Submission could not be saved.");
