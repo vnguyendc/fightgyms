@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { str } from "./forms";
 import { safeExternalUrl } from "./site";
 
 export const SUBMISSION_FIELDS = ["trial_price", "drop_in_price", "monthly_price", "website", "other"] as const;
@@ -30,7 +31,6 @@ export type ParsedSubmission =
 const SLUG = /^[a-z0-9-]{1,120}$/;
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
 
-const str = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 
 /** "$25", "25", "25.00", "25.5", "1,000" → cents; anything else, or outside $1–$1,000, → null. */
 export function parseCents(value: string): number | null {

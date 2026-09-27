@@ -1,22 +1,8 @@
 import { track } from "@vercel/analytics/server";
 import { getGymCard } from "@/lib/data";
+import { MAX_BODY, readBody } from "@/lib/forms";
 import { runtimePolicy } from "@/lib/site";
 import { insertSubmission, parseSubmission } from "@/lib/submissions";
-
-const MAX_BODY = 8 * 1024;
-
-async function readBody(request: Request): Promise<Record<string, unknown>> {
-  try {
-    if ((request.headers.get("content-type") ?? "").includes("application/json")) {
-      const json: unknown = await request.json();
-      return json && typeof json === "object" && !Array.isArray(json) ? (json as Record<string, unknown>) : {};
-    }
-    const form = await request.formData();
-    return Object.fromEntries([...form.entries()].map(([k, v]) => [k, typeof v === "string" ? v : ""]));
-  } catch {
-    return {};
-  }
-}
 
 /**
  * The one conversion worth counting. Field name only, never the value or email. Headers go to Vercel's own
