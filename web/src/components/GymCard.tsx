@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { GymPhoto, PhotoFallback } from "@/components/GymPhoto";
-import { miles, money } from "@/lib/format";
+import { fullAddress, miles, money } from "@/lib/format";
 import { hasSchedule } from "@/lib/geo";
 import { STYLE_LABEL, TAG_LABEL, type GymCard as GymCardT, type Tag } from "@/lib/types";
 
@@ -60,7 +60,7 @@ export default function GymCard({ gym, rank, distanceMi }: { gym: GymCardT; rank
           {gym.name}
         </h3>
         {gym.claimed && <span className="text-accent text-xs">✓ claimed</span>}
-        <p className="text-sm text-muted mt-0.5 truncate">{gym.address ?? `${gym.city}, ${gym.state}`}</p>
+        <p className="text-sm text-muted mt-0.5 truncate">{fullAddress(gym) ?? `${gym.city}, ${gym.state}`}</p>
 
         {cost ? (
           <p className="mt-3 font-mono text-sm">{cost}</p>

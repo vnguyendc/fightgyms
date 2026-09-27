@@ -5,7 +5,7 @@ import CorrectionForm from "@/components/CorrectionForm";
 import { Badge, FighterBadge } from "@/components/GymCard";
 import { GymPhoto } from "@/components/GymPhoto";
 import { getAllGyms, getGym, getPlace } from "@/lib/data";
-import { DOW, fmtTime, miles, money, photoUrl } from "@/lib/format";
+import { DOW, fmtTime, fullAddress, miles, money, photoUrl } from "@/lib/format";
 import { nearestGyms } from "@/lib/geo";
 import { SITE, cityPath, jsonLd as serializeJsonLd, pageMetadata, runtimePolicy, safeExternalUrl } from "@/lib/site";
 import { LIVE_STYLES, STYLE_LABEL, TAG_LABEL, type Price } from "@/lib/types";
@@ -124,7 +124,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
             {g.name}
             {g.claimed && <span className="ml-3 text-accent text-base align-middle">✓ claimed</span>}
           </h1>
-          <p className="mt-2 text-muted">{g.address}</p>
+          <p className="mt-2 text-muted">{fullAddress(g)}</p>
           {trust && <p className="mt-1 text-xs text-muted">{trust}</p>}
           <div className="mt-3 flex flex-wrap gap-1.5">
             {g.styles.map((s) => <Badge key={s} tone="accent">{STYLE_LABEL[s] ?? s}</Badge>)}
@@ -256,7 +256,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
               {website && <a href={website} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">Website ↗</a>}
               {g.instagram && <a href={`https://instagram.com/${g.instagram.replace(/^@/, "")}`} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">@{g.instagram.replace(/^@/, "")}</a>}
               {g.phone && <a href={`tel:${g.phone}`} className="block underline hover:text-accent">{g.phone}</a>}
-              {g.address && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(g.address)}`} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">Directions ↗</a>}
+              {g.address && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress(g) ?? g.address)}`} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">Directions ↗</a>}
             </div>
             {g.founded_year && <div className="mt-4 text-xs text-muted">Est. {g.founded_year}</div>}
           </div>
