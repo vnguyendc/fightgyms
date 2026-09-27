@@ -1,7 +1,7 @@
 import { recordEvent } from "@/lib/analytics";
 import { redirectWith, requestClient, userOf } from "@/lib/auth";
 import { getGymCard } from "@/lib/data";
-import { readBody, tooLarge } from "@/lib/forms";
+import { readBody } from "@/lib/forms";
 import { runtimePolicy } from "@/lib/site";
 import { insertSubmission, parseSubmission } from "@/lib/submissions";
 
@@ -12,9 +12,10 @@ import { insertSubmission, parseSubmission } from "@/lib/submissions";
  */
 export async function POST(request: Request) {
   if (runtimePolicy().mode !== "live") return Response.json({ error: "Submissions are not available in this environment." }, { status: 503 });
-  if (tooLarge(request)) return Response.json({ error: "Submission too large." }, { status: 413 });
+  const body = await readBody(request);
+  if (body === null) return Response.json({ error: "Submission too large." }, { status: 413 });
   const back = (query: string) => redirectWith(new URL(`/claim?${query}`, request.url));
-  const parsed = parseSubmission(await readBody(request));
+  const parsed = parseSubmission(body);
   if (!parsed.ok) return back(`error=${parsed.error}`);
   if (parsed.honeypot) return back(parsed.gym ? `submitted=1&gym=${parsed.gym}` : "submitted=1");
   try {

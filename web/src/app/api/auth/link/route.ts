@@ -1,5 +1,5 @@
 import { SLUG, redirectWith, requestClient } from "@/lib/auth";
-import { readBody, str, tooLarge } from "@/lib/forms";
+import { readBody, str } from "@/lib/forms";
 import { SITE, runtimePolicy } from "@/lib/site";
 
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
@@ -7,8 +7,8 @@ const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
 /** Sends a magic link. The same "check your email" answer for known and unknown addresses; the honeypot gets it for free. */
 export async function POST(request: Request) {
   if (runtimePolicy().mode !== "live") return Response.json({ error: "Sign-in is not available in this environment." }, { status: 503 });
-  if (tooLarge(request)) return Response.json({ error: "Request too large." }, { status: 413 });
   const body = await readBody(request);
+  if (body === null) return Response.json({ error: "Request too large." }, { status: 413 });
   const gym = SLUG.test(str(body.gym)) ? str(body.gym) : null;
   const tail = gym ? `&gym=${gym}` : "";
   const back = (query: string) => redirectWith(new URL(`/claim?${query}${tail}`, request.url));
