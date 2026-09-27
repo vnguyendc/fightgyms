@@ -11,6 +11,7 @@ coordinates gets the mean of its geocoded gyms, which is all distance-to-city ne
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import time
 from pathlib import Path
@@ -19,14 +20,31 @@ import httpx
 
 sys.path.insert(0, str(Path(__file__).parent))
 from common.db import add_source, conn  # noqa: E402
+from public_candidates import STATE_NAMES  # noqa: E402
 
 API = "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress"
 BOX = (18.0, 72.0, -180.0, -60.0)  # lat, lat, lng, lng around the us; catches 0,0 and swapped axes
+SUITE = re.compile(r"(?:,\s*|\s+)(?:(?:Suite|Ste\.?|Unit|Apt\.?|Room|Rm\.?)\s*#?\s*|#\s*)[\w-]+"
+                   r"|(?:,\s*|\s+)\d+(?:st|nd|rd|th)\s+(?:Floor|Fl\.?)\b|(?:,\s*|\s+)(?:Floor|Fl\.?)\s*\d+\b", re.I)
 
 
 def query(address: str, city: str, state: str) -> str:
-    """Addresses that already name the city go as printed; street-only ones get city and state."""
-    return address if city.lower() in address.lower() else f"{address}, {city}, {state}"
+    """Printed addresses with a zip or ", City" go as printed; a street alone gets city and state
+    ("707 Jackson Mills Rd" names Jackson only as a street)."""
+    printed = re.search(r"\b\d{5}\b", address) or f", {city.lower()}" in address.lower()
+    return address if printed else f"{address}, {city}, {state}"
+
+
+def retry_form(q: str, city: str, state: str) -> str:
+    """Second try for a miss: no suite/unit/floor, the state as its code, a comma before the city."""
+    s = SUITE.sub(",", q)
+    for name in STATE_NAMES.get(state, ()):
+        if name.lower() != city.lower():  # "New York, New York" keeps its city
+            s = re.sub(rf",?\s*\b{re.escape(name)}\b", f", {state}", s)
+    s = re.sub(rf"\b{state},?\s+{state}\b", state, s)
+    s = re.sub(rf"(?<!,)\s+({re.escape(city)})(,?\s+{state}\b)", r", \1\2", s, flags=re.I)
+    s = re.sub(r"\s*,(?:\s*,)+", ",", s)
+    return re.sub(r"\s{2,}", " ", s).strip(" ,")
 
 
 def parse_match(data: dict, state: str) -> tuple[float, float, str] | None:
@@ -58,18 +76,24 @@ def main() -> None:
         )
         gyms = cur.fetchall()
         for g in gyms:
-            q = query(g["address"], g["city"], g["state"])
-            try:
-                r = http.get(API, params={"address": q, "benchmark": "Public_AR_Current", "format": "json"})
-                r.raise_for_status()
-                hit = parse_match(r.json(), g["state"])
-            except (httpx.HTTPError, ValueError) as e:
-                print(f"  {g['slug']}: failed {type(e).__name__}", file=sys.stderr)
-                continue
-            finally:
-                time.sleep(0.5)
+            first = query(g["address"], g["city"], g["state"])
+            hit = r = error = None
+            for q in dict.fromkeys([first, retry_form(first, g["city"], g["state"])]):
+                for attempt in range(2):  # the census api throws the odd 5xx
+                    try:
+                        r = http.get(API, params={"address": q, "benchmark": "Public_AR_Current", "format": "json"})
+                        r.raise_for_status()
+                        hit, error = parse_match(r.json(), g["state"]), None
+                        break
+                    except (httpx.HTTPError, ValueError) as e:
+                        error = type(e).__name__
+                        time.sleep(2)
+                    finally:
+                        time.sleep(0.5)
+                if hit:
+                    break
             if not hit:
-                print(f"  {g['slug']}: no match for {q!r}", file=sys.stderr)
+                print(f"  {g['slug']}: {'failed ' + error if error else 'no match'} for {first!r}", file=sys.stderr)
                 continue
             found += 1
             lat, lng, matched = hit

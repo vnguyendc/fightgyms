@@ -32,6 +32,24 @@ class Query(unittest.TestCase):
         self.assertEqual(geo.query("67 Ingraham St", "Brooklyn", "NY"), "67 Ingraham St, Brooklyn, NY")
         self.assertEqual(geo.query("4231 Duke St # B, Alexandria, VA 22304, USA", "Alexandria", "VA"),
                          "4231 Duke St # B, Alexandria, VA 22304, USA")
+        # the city inside a street name is not the city of the address
+        self.assertEqual(geo.query("707 Jackson Mills Rd", "Jackson", "NJ"), "707 Jackson Mills Rd, Jackson, NJ")
+
+    def test_retry_form_drops_suites_and_spells_the_state_as_its_code(self):
+        cases = [
+            ("113 Muskoka Court, Suite #111, Winchester, VA 22602", "Winchester", "VA", "113 Muskoka Court, Winchester, VA 22602"),
+            ("95 Dell Glen Avenue, Unit B Lodi, NJ 07644", "Lodi", "NJ", "95 Dell Glen Avenue, Lodi, NJ 07644"),
+            ("1244 Ritchie Hwy, Suite 3 Arnold, MD 21012", "Arnold", "MD", "1244 Ritchie Hwy, Arnold, MD 21012"),
+            ("12712 Rock Creek Mill Road, Rockville, Maryland", "Rockville", "MD", "12712 Rock Creek Mill Road, Rockville, MD"),
+            ("2793 Brunswick Pike Lawrenceville, NJ, New Jersey 08648", "Lawrenceville", "NJ",
+             "2793 Brunswick Pike, Lawrenceville, NJ 08648"),
+            ("1360 N American St Philadelphia, PA 19122", "Philadelphia", "PA", "1360 N American St, Philadelphia, PA 19122"),
+            ("72-08 Austin Street 2nd Floor, Forest Hills, NY 11375", "Forest Hills", "NY",
+             "72-08 Austin Street, Forest Hills, NY 11375"),
+        ]
+        for address, city, state, want in cases:
+            with self.subTest(address=address):
+                self.assertEqual(geo.retry_form(geo.query(address, city, state), city, state), want)
 
 
 if __name__ == "__main__":
