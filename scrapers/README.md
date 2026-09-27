@@ -9,7 +9,8 @@ env — put these in `scrapers/.env` (gitignored) and load with `set -a; source 
 - `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` — fetch_photos.py uploads to the `gym-photos` storage bucket (service role; never ships to the browser)
 
 order:
-1. `python seed_places.py --cities cities/dmv.txt` — seeds gyms + places from google. city/state come from each result's address components, not the search city (text search for "X in Arlington" returns half of NoVA).
+1. `python -m scrapers.public_candidates` (from the repo root; see [launch operations](../docs/launch-operations.md)) — reviewed official-site evidence → new gyms, scoped by the region lists in `cities/*.txt`. `seed_places.py --cities cities/dmv.txt` is the legacy google seeder: Places content may not be stored, so review provider terms before reuse.
+1b. `python geocode_census.py` — lat/lng for gyms that have none (census bureau geocoder, public domain); `--dry-run` prints matches.
 2. `python extract_site.py --limit 50` — crawls each gym site, extracts prices/schedule/coaches
 2b. `python fetch_photos.py --limit 50` — homepage + gallery images, vision-filtered, into storage. `--url https://...` dry-runs any site
 3. `python enrich_tapology.py` — (todo) fighter records → fighters table
