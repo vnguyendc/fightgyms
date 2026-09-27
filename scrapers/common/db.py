@@ -113,3 +113,20 @@ def replace_classes(cur, gym_id: str, classes: list[dict[str, Any]], source_id: 
             """,
             (gym_id, c["dow"], c["start"], c.get("end"), c.get("name"), c.get("level"), c.get("style"), source_id),
         )
+
+
+def insert_socials(cur, gym_id: str, socials: list[dict[str, Any]], source_id: str | None) -> int:
+    """One active link per platform. An existing active link wins over a newly found one (set is_active=false
+    to let the next run replace it). Returns rows added."""
+    n = 0
+    for s in socials:
+        cur.execute(
+            """
+            insert into gym_socials (gym_id, platform, url, handle, credit, source_url, source_id)
+            values (%s, %s, %s, %s, 'website', %s, %s)
+            on conflict (gym_id, platform) where is_active do nothing
+            """,
+            (gym_id, s["platform"], s["url"], s.get("handle"), s.get("source_url"), source_id),
+        )
+        n += cur.rowcount
+    return n

@@ -2,9 +2,11 @@
 No network, no model, no database."""
 import io
 import unittest
+from unittest import mock
 
 from PIL import Image
 
+from scrapers import fetch_photos
 from scrapers.fetch_photos import extract_candidates, find_gallery_url, prepare
 
 BASE = "https://example-gym.com/"
@@ -102,6 +104,36 @@ class FilenameAlt(unittest.TestCase):
             self.assertTrue(FILENAME_ALT.search(bad), bad)
         for good in ["the mats", "Coach Nok holding pads", "Fight team 2025"]:
             self.assertFalse(FILENAME_ALT.search(good), good)
+
+
+class Socials(unittest.TestCase):
+    def test_profiles_are_merged_across_the_fetched_pages(self):
+        home = '<a href="/gallery">photos</a><a href="https://www.instagram.com/siamstrike/">ig</a><a href="https://www.facebook.com/SiamStrikeMT">fb</a>'
+        gallery = '<a href="https://www.instagram.com/siamstrike/">ig</a><a href="https://www.instagram.com/kru_somchai/">coach</a><img src="/img/ring.jpg">'
+        pages = {BASE: home, BASE + "gallery": gallery}
+        with mock.patch.object(fetch_photos, "fetch_html", lambda client, url: pages.get(url)):
+            cands, fetched, ranked = fetch_photos.collect_site(BASE)
+        self.assertEqual(fetched, [BASE, BASE + "gallery"])
+        self.assertEqual([(r["platform"], r["handle"], r["count"], r["source_url"]) for r in ranked], [
+            ("instagram", "siamstrike", 2, BASE), ("instagram", "kru_somchai", 1, BASE + "gallery"), ("facebook", "SiamStrikeMT", 1, BASE)])
+        self.assertEqual([c["url"] for c in cands], [BASE + "img/ring.jpg"])
+
+    def test_a_website_that_is_itself_a_profile_is_the_link_and_is_never_crawled(self):
+        # some gyms list their instagram as their website; instagram.com serves a login page whose links are not the gym's
+        with mock.patch.object(fetch_photos, "fetch_html", side_effect=AssertionError("crawled a social host")):
+            cands, pages, ranked = fetch_photos.collect_site("http://instagram.com/round15boxinggym")
+        self.assertEqual((cands, pages), ([], []))
+        self.assertEqual([(r["platform"], r["url"], r["count"], r["source_url"]) for r in ranked],
+                         [("instagram", "https://www.instagram.com/round15boxinggym", 2, "http://instagram.com/round15boxinggym")])
+
+    def test_socials_only_pass_never_downloads_or_calls_the_model(self):
+        home = '<a href="https://www.instagram.com/siamstrike/">ig</a><img src="/img/ring.jpg">'
+        with mock.patch.object(fetch_photos, "fetch_html", lambda client, url: home if url == BASE else None), \
+             mock.patch.object(fetch_photos.anthropic, "Anthropic", side_effect=AssertionError("model client created")), \
+             mock.patch.object(fetch_photos, "download", side_effect=AssertionError("image downloaded")):
+            kept, verdicts, pages, ranked = fetch_photos.process_site(BASE, want_photos=False)
+        self.assertEqual((kept, verdicts, pages), ([], [], [BASE]))
+        self.assertEqual([r["url"] for r in ranked], ["https://www.instagram.com/siamstrike"])
 
 
 if __name__ == "__main__":

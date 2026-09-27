@@ -1,11 +1,12 @@
-"""Stage 2b — pull photos from each gym's website into Supabase Storage.
+"""Stage 2b — pull photos and social profile links from each gym's website.
 
 Usage:
   SUPABASE_URL=... SUPABASE_SERVICE_KEY=... ANTHROPIC_API_KEY=... DATABASE_URL=... \\
-    python fetch_photos.py --limit 50            # gyms with a website and no active photos
+    python fetch_photos.py --limit 50            # gyms with a website that still need photos or socials
   python fetch_photos.py --gym-slug some-gym-va  # one gym
   python fetch_photos.py --url https://somegym.com --dry-run   # any site, print verdicts, write nothing
   python fetch_photos.py --refresh               # include gyms that already have photos; adds new ones only
+  DATABASE_URL=... python fetch_photos.py --socials-only       # links only: no downloads, no model, no storage
 
 Pipeline per gym:
   1. fetch homepage + one gallery/photos/facility/tour page
@@ -14,6 +15,8 @@ Pipeline per gym:
   4. Claude vision classifies each candidate; keep gym_space / training / team (portraits, logos, stock dropped)
   5. resize to MAX_EDGE, webp, upload to storage bucket gym-photos under <gym_id>/<hash>.webp
   6. insert gym_photos rows (credit=website) with a sources row holding every candidate + verdict
+  7. social profiles linked from the same pages (common/socials.py) -> gym_socials, one per platform;
+     an existing active link is kept. a gym that already has photos gets only this step.
 Photos credited gym_claim are never touched.
 """
 from __future__ import annotations
@@ -35,8 +38,8 @@ import httpx
 from PIL import Image, ImageOps
 
 sys.path.insert(0, str(Path(__file__).parent))
-from common import storage  # noqa: E402
-from common.db import add_source, conn  # noqa: E402
+from common import socials, storage  # noqa: E402
+from common.db import add_source, conn, insert_socials  # noqa: E402
 
 UA = "Mozilla/5.0 (compatible; fightgyms-bot/0.1; +https://fightgyms.io/bot)"
 MODEL = os.environ.get("EXTRACT_MODEL", "claude-haiku-4-5")
@@ -255,16 +258,21 @@ def classify(client: anthropic.Anthropic, webp: bytes) -> dict:
 # per-site pipeline
 # ---------------------------------------------------------------------------
 
-def collect_site(website: str) -> tuple[list[dict], list[str]]:
-    """Return (candidates, pages fetched)."""
+def collect_site(website: str, gym_name: str = "", gym_city: str = "") -> tuple[list[dict], list[str], list[dict]]:
+    """Return (photo candidates, pages fetched, ranked social profiles)."""
+    own = socials.parse(website)
+    if own:  # the "website" is a profile page: that is the link, and a social host serves nothing worth crawling
+        return [], [], socials.rank([{**own, "source_url": website, "weight": 2}], website, gym_name, gym_city)
     pages: list[str] = []
     cands: list[dict] = []
+    found: list[dict] = []
     with httpx.Client(headers={"User-Agent": UA}, follow_redirects=True, timeout=20) as client:
         html = fetch_html(client, website)
         if html is None:
-            return [], []
+            return [], [], []
         pages.append(website)
         cands.extend(extract_candidates(html, website))
+        found.extend(socials.harvest(html, website))
         gallery = find_gallery_url(html, website)
         if gallery:
             ghtml = fetch_html(client, gallery)
@@ -272,13 +280,17 @@ def collect_site(website: str) -> tuple[list[dict], list[str]]:
                 pages.append(gallery)
                 seen = {c["url"] for c in cands}
                 cands.extend(c for c in extract_candidates(ghtml, gallery) if c["url"] not in seen)
-    return cands[:MAX_DOWNLOADS], pages
+                found.extend(socials.harvest(ghtml, gallery))
+    return cands[:MAX_DOWNLOADS], pages, socials.rank(found, website, gym_name, gym_city)
 
 
-def process_site(website: str, gym_name: str = "") -> tuple[list[dict], list[dict], list[str]]:
-    """Download, filter, classify. Returns (kept, all_verdicts, pages).
-    kept items carry webp bytes under 'data'; verdicts are json-safe."""
-    cands, pages = collect_site(website)
+def process_site(website: str, gym_name: str = "", gym_city: str = "", *, want_photos: bool = True) -> tuple[list[dict], list[dict], list[str], list[dict]]:
+    """Download, filter, classify. Returns (kept, all_verdicts, pages, ranked socials).
+    kept items carry webp bytes under 'data'; verdicts are json-safe. want_photos=False stops after the html:
+    no downloads, no model client, so it needs neither ANTHROPIC_API_KEY nor storage."""
+    cands, pages, ranked = collect_site(website, gym_name, gym_city)
+    if not want_photos:
+        return [], [], pages, ranked
     llm = anthropic.Anthropic()
     kept: list[dict] = []
     verdicts: list[dict] = []
@@ -318,12 +330,17 @@ def process_site(website: str, gym_name: str = "") -> tuple[list[dict], list[dic
                 v["dropped"] = "category" if cls.get("category") not in KEEP else "max_keep"
             verdicts.append(v)
     kept.sort(key=lambda k: PRIMARY_ORDER.index(k["category"]))
-    return kept, verdicts, pages
+    return kept, verdicts, pages, ranked
 
 
-def write_photos(gym_id: str, website: str, kept: list[dict], verdicts: list[dict], pages: list[str]) -> int:
+def write_site(gym_id: str, website: str, kept: list[dict], verdicts: list[dict], pages: list[str], ranked: list[dict],
+               *, photos: bool = True) -> tuple[int, int]:
+    """One sources row per crawl; photos are uploaded + inserted when this was a photo pass, then the best social
+    profile per platform is inserted (an existing active link wins). Returns (new photos, new socials)."""
     with conn() as c, c.cursor() as cur:
-        sid = add_source(cur, "website", website, {"pages": pages, "candidates": verdicts})
+        # 'candidates' marks a photo attempt and 'socials' a socials attempt for select_gyms' 30-day guards
+        raw = {"pages": pages, "socials": ranked, **({"candidates": verdicts} if photos else {})}
+        sid = add_source(cur, "website", website, raw)
         cur.execute("select count(*) n from gym_photos where gym_id = %s and is_active", (gym_id,))
         existing = cur.fetchone()["n"]
         n = 0
@@ -339,8 +356,35 @@ def write_photos(gym_id: str, website: str, kept: list[dict], verdicts: list[dic
                 (gym_id, path, k["width"], k["height"], k["alt_text"], k["url"], sid, existing == 0 and i == 0, existing + i),
             )
             n += cur.rowcount
+        m = insert_socials(cur, gym_id, socials.pick(ranked), sid)
         c.commit()
-    return n
+    return n, m
+
+
+def select_gyms(cur, *, refresh: bool, public_only: bool, socials_only: bool, limit: int) -> list[dict]:
+    """Gyms with a website that still need photos and/or socials, public disciplines first.
+    needs_photos: no active photos (or --refresh) and no photo attempt in 30 days, even one that kept nothing.
+    needs_socials: no active links and no socials attempt in 30 days. Attempts are the sources rows write_site adds."""
+    cur.execute(
+        """
+        select id, slug, name, website, city, needs_photos from (
+          select g.id, g.slug, g.name, g.website, p.city, g.created_at, g.styles && %(live)s::text[] as is_public,
+            (%(refresh)s or not exists (select 1 from gym_photos p where p.gym_id = g.id and p.is_active))
+              and not exists (select 1 from sources s where s.kind = 'website' and s.url = g.website
+                              and s.raw ? 'candidates' and s.fetched_at > now() - interval '30 days') as needs_photos,
+            not exists (select 1 from gym_socials l where l.gym_id = g.id and l.is_active)
+              and not exists (select 1 from sources s where s.kind = 'website' and s.url = g.website
+                              and s.raw ? 'socials' and s.fetched_at > now() - interval '30 days') as needs_socials
+          from gyms g left join places p on p.id = g.place_id
+          where g.website is not null and g.is_active and not g.is_sample
+        ) g
+        where (%(all)s or is_public) and ((needs_photos and not %(socials_only)s) or needs_socials)
+        order by is_public desc, created_at
+        limit %(limit)s
+        """,
+        {"live": LIVE_STYLES, "refresh": refresh, "all": not public_only, "socials_only": socials_only, "limit": limit},
+    )
+    return cur.fetchall()
 
 
 def main() -> None:
@@ -350,51 +394,41 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=50)
     ap.add_argument("--refresh", action="store_true", help="include gyms that already have photos")
     ap.add_argument("--public-only", action="store_true", help="only gyms with a live discipline (listed on the site)")
+    ap.add_argument("--socials-only", action="store_true", help="only harvest social links: no downloads, no vision calls, no storage")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
     dry = args.dry_run or bool(args.url)
 
     if args.url:
-        gyms = [{"id": None, "slug": urlparse(args.url).netloc, "website": args.url, "name": ""}]
+        gyms = [{"id": None, "slug": urlparse(args.url).netloc, "website": args.url, "name": "", "city": "", "needs_photos": True}]
     else:
         with conn() as c, c.cursor() as cur:
             if args.gym_slug:
-                cur.execute("select id, slug, name, website from gyms where slug = %s", (args.gym_slug,))
+                cur.execute("select g.id, g.slug, g.name, g.website, p.city, true as needs_photos from gyms g left join places p on p.id = g.place_id where g.slug = %s", (args.gym_slug,))
+                gyms = cur.fetchall()
             else:
-                cur.execute(
-                    """
-                    select g.id, g.slug, g.name, g.website from gyms g
-                    where g.website is not null and g.is_active and not g.is_sample
-                      and (%s or g.styles && %s::text[])
-                      and (%s or not exists (select 1 from gym_photos p where p.gym_id = g.id and p.is_active))
-                      -- skip sites attempted in the last 30 days, even if they yielded nothing
-                      and not exists (
-                        select 1 from sources s where s.kind = 'website' and s.url = g.website
-                          and s.raw ? 'candidates' and s.fetched_at > now() - interval '30 days')
-                    order by (g.styles && %s::text[]) desc, g.created_at
-                    limit %s
-                    """,
-                    (not args.public_only, LIVE_STYLES, args.refresh, LIVE_STYLES, args.limit),
-                )
-            gyms = cur.fetchall()
+                gyms = select_gyms(cur, refresh=args.refresh, public_only=args.public_only, socials_only=args.socials_only, limit=args.limit)
 
-    if not dry and not storage.configured():
-        sys.exit("SUPABASE_URL and SUPABASE_SERVICE_KEY required (or use --dry-run)")
+    if not dry and not args.socials_only and any(g["needs_photos"] for g in gyms) and not storage.configured():
+        sys.exit("SUPABASE_URL and SUPABASE_SERVICE_KEY required (or use --dry-run / --socials-only)")
 
     for g in gyms:
         if not g["website"]:
             continue
+        want_photos = not args.socials_only and g["needs_photos"]
         print(g["slug"], file=sys.stderr)
         try:
-            kept, verdicts, pages = process_site(g["website"], g["name"])
+            kept, verdicts, pages, ranked = process_site(g["website"], g["name"], g.get("city") or "", want_photos=want_photos)
             if dry:
-                print(json.dumps({"pages": pages, "kept": [k["url"] for k in kept], "candidates": verdicts}, indent=2))
+                print(json.dumps({"pages": pages, "kept": [k["url"] for k in kept], "candidates": verdicts,
+                                  "socials": socials.pick(ranked), "social_candidates": ranked}, indent=2))
                 continue
-            n = write_photos(g["id"], g["website"], kept, verdicts, pages)
+            n, m = write_site(g["id"], g["website"], kept, verdicts, pages, ranked, photos=want_photos)
         except Exception as e:  # noqa: BLE001 — one bad site or upload must not stop the batch
             print(f"  failed: {type(e).__name__}: {e}", file=sys.stderr)
             continue
-        print(f"  {len(verdicts)} candidates -> {len(kept)} kept, {n} new", file=sys.stderr)
+        photo_note = f"{len(verdicts)} candidates -> {len(kept)} kept, {n} new" if want_photos else "photos skipped"
+        print(f"  {photo_note}; {len(socials.pick(ranked))} socials, {m} new", file=sys.stderr)
 
 
 if __name__ == "__main__":

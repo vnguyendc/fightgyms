@@ -8,7 +8,7 @@ import { getAllGyms, getGym, getPlace } from "@/lib/data";
 import { DOW, fmtTime, fullAddress, miles, money, photoUrl } from "@/lib/format";
 import { nearestGyms } from "@/lib/geo";
 import { SITE, breadcrumbJsonLd, cityPath, distinctStyleListing, jsonLd as serializeJsonLd, pageMetadata, runtimePolicy, safeExternalUrl } from "@/lib/site";
-import { LIVE_STYLES, STYLE_LABEL, TAG_LABEL, type Price } from "@/lib/types";
+import { LIVE_STYLES, SOCIAL_LABEL, STYLE_LABEL, TAG_LABEL, type Price } from "@/lib/types";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -58,6 +58,8 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
   const cityHref = place ? cityPath(place) : "/gyms";
   const website = safeExternalUrl(g.website);
   const live = runtimePolicy().mode === "live";
+  const socials = g.socials.flatMap((s) => { const href = safeExternalUrl(s.url); return href ? [{ ...s, href }] : []; });
+  const sameAs = [website, ...socials.map((s) => s.href)].filter((u): u is string => !!u);
   const byDay = new Map<number, typeof g.classes>();
   for (const c of g.classes) byDay.set(c.dow, [...(byDay.get(c.dow) ?? []), c]);
   const lastVerified = g.prices.map((p) => p.verified_at).filter(Boolean).sort().at(-1);
@@ -76,7 +78,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
     name: g.name,
     image: g.photos.length ? g.photos.map((p) => new URL(photoUrl(p.storage_path), SITE.url).href) : undefined,
     url: `${SITE.url}/gym/${g.slug}`,
-    sameAs: website,
+    sameAs: sameAs.length ? sameAs : undefined,
     mainEntityOfPage: `${SITE.url}/gym/${g.slug}`,
     telephone: g.phone ?? undefined,
     address: g.address ? { "@type": "PostalAddress", streetAddress: g.address, addressLocality: g.city, addressRegion: g.state } : undefined,
@@ -255,7 +257,11 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
             )}
             <div className="mt-4 space-y-1.5">
               {website && <a href={website} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">Website ↗</a>}
-              {g.instagram && <a href={`https://instagram.com/${g.instagram.replace(/^@/, "")}`} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">@{g.instagram.replace(/^@/, "")}</a>}
+              {socials.map((s) => (
+                <a key={`${s.platform}:${s.href}`} href={s.href} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">
+                  {`${SOCIAL_LABEL[s.platform]}${s.handle ? ` @${s.handle}` : ""} ↗`}
+                </a>
+              ))}
               {g.phone && <a href={`tel:${g.phone}`} className="block underline hover:text-accent">{g.phone}</a>}
               {g.address && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress(g) ?? g.address)}`} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">Directions ↗</a>}
             </div>

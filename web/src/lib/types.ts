@@ -60,6 +60,28 @@ export interface Place {
   population: number | null;
 }
 
+export type SocialPlatform = "instagram" | "facebook" | "tiktok" | "youtube" | "x";
+
+export const SOCIAL_LABEL: Record<SocialPlatform, string> = {
+  instagram: "Instagram",
+  facebook: "Facebook",
+  tiktok: "TikTok",
+  youtube: "YouTube",
+  x: "X",
+};
+
+/** Display order; platform values outside this list are not rendered. */
+export const SOCIAL_ORDER: SocialPlatform[] = ["instagram", "facebook", "tiktok", "youtube", "x"];
+
+export interface Social {
+  platform: SocialPlatform;
+  /** canonical profile url */
+  url: string;
+  /** display handle without @, when the platform has one */
+  handle: string | null;
+  credit: string | null; // website | gym_claim | manual
+}
+
 export interface Photo {
   /** path inside the gym-photos bucket, or a site-relative path for sample data */
   storage_path: string;
@@ -148,6 +170,7 @@ export interface GymDetail extends GymCard {
   coaches: Coach[];
   fighters: Fighter[];
   photos: Photo[];
+  socials: Social[];
 }
 
 export interface Event {
