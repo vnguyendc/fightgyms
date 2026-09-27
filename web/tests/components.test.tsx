@@ -113,3 +113,13 @@ test("suggestion list renders options with ids, hrefs, the active item and the l
   assert.match(noLocate, /id="s-listbox-0"[^>]*aria-selected="true"[\s\S]*?href="\/gyms\/va\/arlington"/);
   assert.equal((noLocate.match(/role="option"/g) ?? []).length, 2);
 });
+
+test("city pages open with the listing summary and label nearby cities by whether they are within the radius", () => {
+  const html = renderToStaticMarkup(<CityPage place={place} gyms={[gym]} nearby={[{ place: { ...place, slug: "fairfax-va", city: "Fairfax" }, distanceMi: 12, count: 3 }]} />);
+  assert.match(html, /1 Muay Thai &amp; Kickboxing gym is listed in Arlington, VA\. 1 of them lists a price; trial or drop-in classes start at \$30\./);
+  assert.match(html, /within about 25 miles of Arlington/);
+  const far = renderToStaticMarkup(<CityPage place={place} gyms={[gym]} nearby={[{ place: { ...place, slug: "winchester-va", city: "Winchester" }, distanceMi: 62, count: 1 }]} />);
+  assert.match(far, /No other listed cities within 25 miles of Arlington\. Nearest listed cities:/);
+  assert.match(far, /href="\/gyms\/va\/winchester"[^>]*>Winchester, VA <span[^>]*>\(1 · 62 mi\)/);
+  assert.doesNotMatch(far, /within about 25 miles/);
+});

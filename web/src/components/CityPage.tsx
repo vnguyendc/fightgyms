@@ -1,15 +1,18 @@
 import Link from "next/link";
 import GymList from "@/components/GymList";
 import { miles } from "@/lib/format";
-import { byCompleteness, coverage, coverageLine, type NearbyPlace } from "@/lib/geo";
+import { NEARBY_RADIUS_MI, byCompleteness, coverage, coverageLine, listingSummary, type NearbyPlace } from "@/lib/geo";
 import { SITE, cityPath, distinctStyles, jsonLd as serializeJsonLd } from "@/lib/site";
 import { STYLE_LABEL, type GymCard as GymCardT, type Place, type Style } from "@/lib/types";
 
 function NearbyCities({ city, nearby }: { city: string; nearby: NearbyPlace[] }) {
+  const isolated = nearby.some((n) => n.distanceMi > NEARBY_RADIUS_MI);
   return (
     <section className="mt-10">
       <h2 className="text-xl font-semibold">Nearby cities</h2>
-      <p className="mt-1 text-sm text-muted">Listed gyms within about 25 miles of {city}.</p>
+      <p className="mt-1 text-sm text-muted">
+        {isolated ? `No other listed cities within ${NEARBY_RADIUS_MI} miles of ${city}. Nearest listed cities:` : `Listed gyms within about ${NEARBY_RADIUS_MI} miles of ${city}.`}
+      </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {nearby.map(({ place, distanceMi, count }) => (
           <Link key={place.slug} href={cityPath(place)} className="rounded-full border border-line px-4 py-2 text-sm hover:border-accent">
@@ -53,7 +56,8 @@ export default function CityPage({ place, gyms, style, nearby = [], cityGyms = g
       <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
         {label} gyms in {place.city}, {place.state}
       </h1>
-      <p className="mt-3 text-muted max-w-2xl">
+      {gyms.length > 0 && <p className="mt-3 max-w-2xl">{listingSummary(label, place, gyms)}</p>}
+      <p className="mt-2 text-muted max-w-2xl text-sm">
         {coverageLine(coverage(gyms))} · most complete listings first. Check with the gym for current classes, prices and trial availability.
       </p>
 

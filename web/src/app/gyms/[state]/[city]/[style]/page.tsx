@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import CityPage from "@/components/CityPage";
 import { getAllGyms, getGymsByPlace, getPlace, getPlaces } from "@/lib/data";
-import { nearbyPlaces, placeCounts } from "@/lib/geo";
+import { nearbyOrNearest, placeCounts } from "@/lib/geo";
 import { cityPath, distinctStyleListing, pageMetadata } from "@/lib/site";
 import { LIVE_STYLES, STYLE_LABEL, STYLE_SLUG, type Style } from "@/lib/types";
 
@@ -47,5 +47,5 @@ export default async function Page({ params }: PageProps<"/gyms/[state]/[city]/[
   const place = await getPlace(`${city}-${state}`);
   if (!place) notFound();
   const [{ cityGyms, gyms }, places, all] = await Promise.all([styleListing(place, st), getPlaces(), getAllGyms()]);
-  return <CityPage place={place} gyms={gyms} cityGyms={cityGyms} style={st} nearby={nearbyPlaces(place, places, placeCounts(all))} />;
+  return <CityPage place={place} gyms={gyms} cityGyms={cityGyms} style={st} nearby={nearbyOrNearest(place, places, placeCounts(all))} />;
 }

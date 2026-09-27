@@ -122,6 +122,21 @@ test("a discipline page that is a strict subset of its city renders, is indexabl
   assert.doesNotMatch(cityHtml, /href="\/gyms\/va\/arlington\/muay-thai"/);
 });
 
+
+test("a city with no listed neighbour within 25 miles still links its nearest listed cities", async t => {
+  const far = { ...place, id: "far", slug: "winchester-va", city: "Winchester", lat: 39.185, lng: -78.163 };
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+    const u = new URL(input instanceof Request ? input.url : input);
+    if (u.pathname.endsWith("/places")) return Response.json(u.searchParams.get("slug")?.startsWith("eq.") ? place : [place, far]);
+    if (u.pathname.endsWith("/gym_cards") && !u.searchParams.get("place_slug") && !u.searchParams.get("slug")) return Response.json([gym, { ...gym, id: "w", slug: "w-gym", place_slug: "winchester-va" }]);
+    return fixtureResponse(input);
+  });
+  const html = renderToStaticMarkup(await city.default(cityProps));
+  assert.match(html, /Nearest listed cities:/);
+  assert.match(html, /href="\/gyms\/va\/winchester"/);
+});
+
+
 test("preview and demo routes stay noindex even with content; sitemap is empty", async t => {
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => fixtureResponse(input));
   process.env.VERCEL_ENV = "preview";
