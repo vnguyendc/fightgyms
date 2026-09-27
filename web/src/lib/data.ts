@@ -84,6 +84,15 @@ export async function getGymCard(slug: string): Promise<GymCard | null> {
   return card && visible(card) && live(card) ? card : null;
 }
 
+/** Cards for a set of ids, for a signed-in visitor's own claims and submissions. Samples never appear. */
+export async function getGymCardsByIds(ids: string[]): Promise<GymCard[]> {
+  if (!ids.length) return [];
+  const c = sb();
+  if (!c) return demo() ? S.gyms.filter((g) => ids.includes(g.id)) : [];
+  const rows: GymCard[] = await checked(c.from("gym_cards").select("*").in("id", ids).eq("is_sample", false)) ?? [];
+  return rows.filter(visible);
+}
+
 export async function getGym(slug: string): Promise<GymDetail | null> {
   const c = sb();
   if (!c) {

@@ -14,7 +14,13 @@ export async function readBody(request: Request): Promise<Record<string, unknown
       return json && typeof json === "object" && !Array.isArray(json) ? (json as Record<string, unknown>) : {};
     }
     const form = await request.formData();
-    return Object.fromEntries([...form.entries()].map(([k, v]) => [k, typeof v === "string" ? v : ""]));
+    const out: Record<string, string | string[]> = {};
+    for (const [k, v] of form.entries()) {
+      const s = typeof v === "string" ? v : "";
+      const prev = out[k];
+      out[k] = prev === undefined ? s : Array.isArray(prev) ? [...prev, s] : [prev, s];
+    }
+    return out;
   } catch {
     return {};
   }
