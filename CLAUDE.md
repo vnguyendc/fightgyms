@@ -19,7 +19,7 @@ Operational gates (Vercel config, credentials, candidate pipeline, SEO verificat
 - `cd web && npm ci && SHOW_SAMPLE=1 npm run dev` — fictional demo from `web/src/data/sample.json`. Production never serves samples; without a real Supabase config it renders an unavailable, noindex state.
 - With Supabase env set, `web/src/lib/data.ts` reads `gym_cards` / `gym_current_prices` / `gym_photos`. Read errors throw (no silent empty listings).
 - Scraper env lives in `scrapers/.env` (gitignored; scripts do not auto-load it): `DATABASE_URL` (session pooler, not the IPv6-only direct host), `GOOGLE_PLACES_KEY`, `ANTHROPIC_API_KEY`, `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` (photos upload).
-- Full check: `cd web && npm test && npm run typecheck && npm run lint && npm run build && npm run test:smoke` (smoke needs an unconfigured production build). Keep it green.
+- Full check: `cd web && npm test && npm run typecheck && npm run lint && npm run build && npm run test:smoke` (smoke needs an unconfigured production build; with a `web/.env.local` present set `NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY=` on the build and smoke commands, since `next build` loads the file regardless). Keep it green.
 - Migrations verified against Postgres 16 / PGlite with stubbed `auth` and `storage` schemas; `seed.sql` applies after 0001.
 
 ## conventions

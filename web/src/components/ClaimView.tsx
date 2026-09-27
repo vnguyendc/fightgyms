@@ -83,7 +83,9 @@ function SignedOut({ gym, gymSlug, notice }: Extract<ClaimState, { kind: "signed
 function SignedIn({ user, gym, claims, submissions, gyms }: Extract<ClaimState, { kind: "signed-in" }>) {
   const card = (id: string | null) => gyms.find((g) => g.id === id);
   const name = (id: string | null) => card(id)?.name ?? "Unlisted gym";
-  const mine = gym ? claims.find((c) => c.entity_id === gym.id) : undefined;
+  // A rejected claim is closed: the unique index lets the owner file again, so only pending/verified hides the form.
+  const mine = gym ? claims.find((c) => c.entity_id === gym.id && c.status !== "rejected") : undefined;
+  const rejected = gym && !mine ? claims.find((c) => c.entity_id === gym.id && c.status === "rejected") : undefined;
   return (
     <div className="mx-auto max-w-xl px-4 py-10">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -102,6 +104,7 @@ function SignedIn({ user, gym, claims, submissions, gyms }: Extract<ClaimState, 
         <form action="/api/claims" method="post" className="mt-6 rounded-xl border border-line p-4 text-sm space-y-3">
           <div className="font-medium">Claim {gym.name}</div>
           <p className="text-muted">{gym.address ?? [gym.city, gym.state].filter(Boolean).join(", ")}</p>
+          {rejected && <p className="text-muted">Your earlier claim was not approved. You can file again; a note with how to reach you at the gym helps.</p>}
           <input type="hidden" name="gym" value={gym.slug} />
           <Honeypot />
           <label className="block">

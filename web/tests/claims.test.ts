@@ -99,3 +99,22 @@ test("claims route: inserts as the user, treats a repeat as success, and never t
     assert.ok(!calls.some((c) => c.url.includes("/rest/v1/claims")));
   } finally { unconfigured(); }
 });
+
+test("an expired session whose refresh token was revoked is signed out, never a 500 or an insert", async (t) => {
+  goLive();
+  try {
+    const urls: string[] = [];
+    t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+      const url = String(input instanceof Request ? input.url : input);
+      urls.push(url);
+      if (url.includes("grant_type=refresh_token")) return new Response(JSON.stringify({ error_code: "refresh_token_not_found", msg: "Invalid Refresh Token: Refresh Token Not Found" }), { status: 400, headers: { "content-type": "application/json" } });
+      throw new Error(`unexpected ${url}`);
+    });
+    const route = await import("../src/app/api/claims/route");
+    const res = await route.POST(post(good, { cookie: sessionCookie({ exp: Math.floor(Date.now() / 1000) - 60 }), origin: ORIGIN }));
+    assert.equal(res.status, 303);
+    assert.equal(loc(res), "/claim?error=signin&gym=test-gym");
+    assert.equal(urls.filter((u) => u.includes("grant_type=refresh_token")).length, 1, "one refresh attempt");
+    assert.ok(!urls.some((u) => u.includes("/rest/v1/") || u.includes("/auth/v1/user")), "no insert, no user lookup");
+  } finally { unconfigured(); }
+});

@@ -11,7 +11,7 @@ npm run build
 npm run test:smoke
 ```
 
-The smoke command starts/stops a local production server on port 3108 (`SMOKE_PORT` overrides it). It requires an **unconfigured production build**: unset both Supabase variables before building and running it. It checks actual HTTP HTML, status codes, canonicals, noindex, robots and sitemap. Unit/render tests use clearly labeled fixtures and stub only Supabase's HTTP transport; they never access or write an external database.
+The smoke command starts/stops a local production server on port 3108 (`SMOKE_PORT` overrides it). It requires an **unconfigured production build**: unset both Supabase variables before building and running it. A `web/.env.local` is loaded by `next build` even when the variables are unset in the shell, so with one present set them to empty strings instead: `NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= npm run build && NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= npm run test:smoke`. It checks actual HTTP HTML, status codes, canonicals, noindex, robots and sitemap. Unit/render tests use clearly labeled fixtures and stub only Supabase's HTTP transport; they never access or write an external database.
 
 ## Production environment
 

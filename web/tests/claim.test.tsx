@@ -85,6 +85,9 @@ test("signed-in view shows the claim panel, own rows with status words, and the 
   const already = render({ ...base, gym: other });
   assert.doesNotMatch(already, /action="\/api\/claims"/);
   assert.match(already, /already claimed Other gym[\s\S]*verified/i);
+  const rejected = render({ ...base, gym: other, claims: [{ ...claims[0], status: "rejected" }] });
+  assert.match(rejected, /action="\/api\/claims" method="post"/, "a rejected owner can file again");
+  assert.match(rejected, /not approved[\s\S]*file again/i);
   const noGym = render({ ...base, gym: null, gymSlug: null, claims: [], submissions: [] });
   assert.doesNotMatch(noGym, /action="\/api\/claims"/);
   assert.match(noGym, /No claims yet/);
