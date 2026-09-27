@@ -2,7 +2,7 @@ import { recordEvent } from "@/lib/analytics";
 import { redirectWith, requestClient, sameOrigin, userOf } from "@/lib/auth";
 import { insertClaim, parseClaim } from "@/lib/claims";
 import { getGymCard } from "@/lib/data";
-import { readBody, tooLarge } from "@/lib/forms";
+import { readBody } from "@/lib/forms";
 import { runtimePolicy } from "@/lib/site";
 
 /**
@@ -11,8 +11,9 @@ import { runtimePolicy } from "@/lib/site";
  */
 export async function POST(request: Request) {
   if (runtimePolicy().mode !== "live") return Response.json({ error: "Claims are not available in this environment." }, { status: 503 });
-  if (tooLarge(request)) return Response.json({ error: "Request too large." }, { status: 413 });
-  const parsed = parseClaim(await readBody(request));
+  const body = await readBody(request);
+  if (body === null) return Response.json({ error: "Request too large." }, { status: 413 });
+  const parsed = parseClaim(body);
   const back = (query: string) => redirectWith(new URL(`/claim?${query}`, request.url));
   if (!parsed.ok) return back(parsed.error === "gym" ? "error=notfound" : `error=claim&gym=${parsed.gym}`);
   const tail = `&gym=${parsed.input.gym}`;

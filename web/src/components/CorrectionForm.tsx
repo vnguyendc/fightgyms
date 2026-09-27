@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { FIELD_LABEL, SUBMISSION_FIELDS } from "@/lib/submissions";
 
 const field = "mt-1 block w-full rounded-md border border-line bg-bg px-3 py-2 text-sm focus:border-accent focus:outline-none";
@@ -28,9 +29,10 @@ export default function CorrectionForm({ slug }: { slug: string }) {
         <textarea name="note" maxLength={1000} rows={2} className={field} />
       </label>
       <label className="mt-3 block">
-        Email <span className="text-muted">(optional, only if we have a question)</span>
+        Email <span className="text-muted">(optional; used when signed out)</span>
         <input name="email" type="email" maxLength={254} className={field} />
       </label>
+      <p className="mt-2 text-xs text-muted">When signed in, we save your account ID and verified account email with this correction, even if this field is blank or contains a different email. <Link href="/privacy" className="underline">Privacy</Link></p>
       <button type="submit" className="mt-4 rounded-md border border-accent px-4 py-2 text-accent hover:bg-accent hover:text-bg">Send correction</button>
     </form>
   );

@@ -255,8 +255,8 @@ flowchart LR
 ```
 
 1. custom smtp (resend, postmark or ses) with a findfightgyms.com sender and its dns records. without it no owner can sign in.
-2. auth → email provider enabled. templates "Magic link or OTP" and "Confirm sign up" both set to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next={{ .RedirectTo }}`. site url `https://findfightgyms.com`.
-3. redirect allow-list: `https://findfightgyms.com/claim*` (`*` matches non-separator characters, so `?gym=<slug>` matches and `/claim/x` does not) and `http://localhost:3000/**` for development.
+2. auth → email provider enabled. templates "Magic link or OTP" and "Confirm sign up" both set to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next={{ .RedirectTo }}`. site url `https://www.findfightgyms.com`, matching production's `NEXT_PUBLIC_SITE_URL`.
+3. redirect allow-list: `https://www.findfightgyms.com/claim*` (`*` matches non-separator characters, so `?gym=<slug>` matches and `/claim/x` does not) and `http://localhost:3000/**` for development. keep the same www origin in both auth settings and `NEXT_PUBLIC_SITE_URL` so the sign-in link preserves the selected gym.
 4. apply 0005 with `cd scrapers && .venv/bin/python run_sql.py ../supabase/migrations/0005_claims.sql` after the migration test passes. first check `select count(*) from submissions where entity_id is null` is zero; a nonzero count means rows to inspect before the shape constraint can apply.
 5. review snippets, run as postgres:
    - claim: `update claims set status = 'verified' where id = '<id>'` (or `'rejected'`). the trigger flips `gyms.claimed`.
