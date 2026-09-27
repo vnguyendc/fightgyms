@@ -19,7 +19,7 @@ test("city structured data cannot break out of a script; card UI does not republ
   assert.doesNotMatch(html, /free or cheap first class|dedicated beginner|Ranked by|typical drop-in/);
   assert.doesNotMatch(renderToStaticMarkup(<GymCard gym={gym} />), /★|reviews/);
   assert.match(html, /href="\/gym\/test-gym"/);
-  assert.doesNotMatch(html, /href="\/gyms\/va\/arlington\/kickboxing"/);
+  assert.doesNotMatch(html, /href="\/gyms\/va\/arlington\/(muay-thai|kickboxing)"/, "a chip must not link a discipline page identical to this one");
 });
 
 test("route failures have an explicit retry state without exposing backend errors", async () => {

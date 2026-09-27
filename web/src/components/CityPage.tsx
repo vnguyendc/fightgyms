@@ -2,8 +2,8 @@ import Link from "next/link";
 import GymList from "@/components/GymList";
 import { miles } from "@/lib/format";
 import { byCompleteness, coverage, coverageLine, type NearbyPlace } from "@/lib/geo";
-import { SITE, cityPath, jsonLd as serializeJsonLd } from "@/lib/site";
-import { LIVE_STYLES, STYLE_LABEL, type GymCard as GymCardT, type Place, type Style } from "@/lib/types";
+import { SITE, cityPath, distinctStyles, jsonLd as serializeJsonLd } from "@/lib/site";
+import { STYLE_LABEL, type GymCard as GymCardT, type Place, type Style } from "@/lib/types";
 
 function NearbyCities({ city, nearby }: { city: string; nearby: NearbyPlace[] }) {
   return (
@@ -21,7 +21,8 @@ function NearbyCities({ city, nearby }: { city: string; nearby: NearbyPlace[] })
   );
 }
 
-export default function CityPage({ place, gyms, style, nearby = [] }: { place: Place; gyms: GymCardT[]; style?: Style; nearby?: NearbyPlace[] }) {
+/** `cityGyms` is the unfiltered city listing; a discipline page passes it so chips are judged against the whole city. */
+export default function CityPage({ place, gyms, style, nearby = [], cityGyms = gyms }: { place: Place; gyms: GymCardT[]; style?: Style; nearby?: NearbyPlace[]; cityGyms?: GymCardT[] }) {
   const base = cityPath(place);
   const label = style ? STYLE_LABEL[style] : "Muay Thai & Kickboxing";
   const ordered = [...gyms].sort(byCompleteness);
@@ -58,7 +59,7 @@ export default function CityPage({ place, gyms, style, nearby = [] }: { place: P
 
       <div className="mt-6 flex flex-wrap gap-2 text-sm">
         <Link href={base} className={`rounded-full border px-3 py-1 ${!style ? "border-accent text-accent" : "border-line text-muted hover:text-ink"}`}>All</Link>
-        {LIVE_STYLES.filter((s) => gyms.some((g) => g.styles.includes(s))).map((s) => (
+        {distinctStyles(cityGyms).map((s) => (
           <Link
             key={s}
             href={cityPath(place, s)}

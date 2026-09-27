@@ -33,3 +33,13 @@ test("only configured production deployments are indexable; demo is explicit and
 test("canonical origin defaults to the owned findfightgyms.com domain", () => {
   assert.equal(SITE.url, "https://findfightgyms.com");
 });
+
+test("a discipline listing is distinct only when it is a strict, non-empty subset of the city listing", () => {
+  assert.equal(typeof site.distinctStyleListing, "function");
+  const mt = { styles: ["muay_thai" as const] };
+  const both = { styles: ["muay_thai" as const, "kickboxing" as const] };
+  assert.equal(site.distinctStyleListing([mt, both], "kickboxing"), true, "subset: 1 of 2");
+  assert.equal(site.distinctStyleListing([mt, both], "muay_thai"), false, "every gym has it: same list as the city page");
+  assert.equal(site.distinctStyleListing([mt], "kickboxing"), false, "no gym has it: nothing to list");
+  assert.equal(site.distinctStyleListing([], "muay_thai"), false);
+});

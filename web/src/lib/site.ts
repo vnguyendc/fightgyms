@@ -45,6 +45,17 @@ export function cityPath(place: Pick<Place, "state" | "slug">, style?: Style): s
   return style ? `${base}/${STYLE_SLUG[style]}` : base;
 }
 
+/** A discipline page earns its own URL only when it lists a strict, non-empty subset of the city page; otherwise it duplicates it. */
+export function distinctStyleListing(local: Pick<GymCard, "styles">[], style: Style): boolean {
+  const matching = local.filter(g => g.styles.includes(style)).length;
+  return matching > 0 && matching < local.length;
+}
+
+/** Live disciplines that deserve their own page for this city listing. */
+export function distinctStyles(local: Pick<GymCard, "styles">[]): Style[] {
+  return LIVE_STYLES.filter(style => distinctStyleListing(local, style));
+}
+
 export function directorySitemap(places: Place[], gyms: GymCard[], indexable: boolean, hasEvents: boolean): MetadataRoute.Sitemap {
   if (!indexable) return [];
   const publicGyms = gyms.filter((g) => g.is_sample === false && !g.slug.startsWith("sample-") && g.styles.some(s => LIVE_STYLES.includes(s)));
@@ -58,7 +69,7 @@ export function directorySitemap(places: Place[], gyms: GymCard[], indexable: bo
     if (!local.length) continue;
     paths.add(cityPath(place));
     for (const style of LIVE_STYLES) {
-      if (local.some(g => g.styles.includes(style))) paths.add(cityPath(place, style));
+      if (distinctStyleListing(local, style)) paths.add(cityPath(place, style));
     }
   }
   for (const gym of publicGyms) paths.add(`/gym/${gym.slug}`);

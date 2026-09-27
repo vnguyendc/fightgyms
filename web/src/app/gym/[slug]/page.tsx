@@ -7,7 +7,7 @@ import { GymPhoto } from "@/components/GymPhoto";
 import { getAllGyms, getGym, getPlace } from "@/lib/data";
 import { DOW, fmtTime, miles, money, photoUrl } from "@/lib/format";
 import { nearestGyms } from "@/lib/geo";
-import { SITE, cityPath, jsonLd as serializeJsonLd, pageMetadata, runtimePolicy, safeExternalUrl } from "@/lib/site";
+import { SITE, cityPath, distinctStyleListing, jsonLd as serializeJsonLd, pageMetadata, runtimePolicy, safeExternalUrl } from "@/lib/site";
 import { LIVE_STYLES, STYLE_LABEL, TAG_LABEL, type Price } from "@/lib/types";
 
 export const revalidate = 3600;
@@ -286,7 +286,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
               <>
                 <Link href={cityHref} className={`${nearby.length ? "mt-3" : ""} block underline`}>All gyms in {place.city}</Link>
                 {g.styles.filter((s) => LIVE_STYLES.includes(s)).map((s) => (
-                  <Link key={s} href={cityPath(place, s)} className="mt-2 block underline">{STYLE_LABEL[s]} in {place.city}</Link>
+                  <Link key={s} href={distinctStyleListing(all.filter((x) => x.place_slug === place.slug), s) ? cityPath(place, s) : cityPath(place)} className="mt-2 block underline">{STYLE_LABEL[s]} in {place.city}</Link>
                 ))}
               </>
             )}
