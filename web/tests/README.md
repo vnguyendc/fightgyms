@@ -1,6 +1,6 @@
 # Web launch checks
 
-Run from `web/` using Node 22 (the CI version):
+Run from `web/` using Node 24 (`engines.node`, which CI and Vercel both use):
 
 ```sh
 npm ci

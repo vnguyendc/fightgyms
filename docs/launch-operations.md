@@ -6,7 +6,7 @@ Canonical domain: **https://findfightgyms.com**. Product name: FightGyms.
 
 The launch slice does not depend on Jev. It provides safe SEO behavior and a public-source candidate queue/importer. Code checks are not proof of a live deployment or database connection.
 
-- Configure the Vercel project from repository `vnguyendc/fightgyms`, production branch `master`, **Root Directory `web`** (without it every git-triggered build fails with "Couldn't find any `pages` or `app` directory"; set 2026-09-27), using Node 22.
+- Configure the Vercel project from repository `vnguyendc/fightgyms`, production branch `master`, **Root Directory `web`** (without it every git-triggered build fails with "Couldn't find any `pages` or `app` directory"; set 2026-09-27). Node is pinned by `engines.node` (24.x) in `web/package.json`, which overrides the project's Node setting; CI reads the same value.
 - Set `NEXT_PUBLIC_SITE_URL=https://www.findfightgyms.com` (production canonical host is www; apex 308s to it), `NEXT_PUBLIC_SUPABASE_URL`, and the **public anon** `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Never expose a service-role key to the browser.
 - Leave `SHOW_SAMPLE` unset/`0`. Verify the existing schema and public-read RLS with actual data before publishing.
 - Apply `supabase/migrations/0003_gym_cards_v3.sql` (`cd scrapers && .venv/bin/python run_sql.py ../supabase/migrations/0003_gym_cards_v3.sql`) before deploying a build that reads `trial_cents`/`class_count`. Older rows render as missing data, not errors. Rollback is re-running the view definition in `0002_photos.sql`; never drop data.
@@ -17,6 +17,28 @@ The launch slice does not depend on Jev. It provides safe SEO behavior and a pub
 - Without a configured real backend, production intentionally shows an unavailable state, noindex, no fictional detail routes, and an empty sitemap. That state is **not an SEO launch**.
 
 See [web checks](../web/tests/README.md) for commands and environment behavior.
+
+## Deploy pipeline and checks
+
+```mermaid
+flowchart LR
+  pr[PR commit] --> webpr["web check<br/>test, typecheck, lint, build, smoke"]
+  pr --> preview["Vercel preview build<br/>(Vercel check)"]
+  webpr --> ruleset{"ruleset:<br/>both green?"}
+  preview --> ruleset
+  ruleset -- yes --> merge[merge to master]
+  merge --> prodbuild[Vercel production build]
+  merge --> webmaster[web check on the merge commit]
+  prodbuild --> hold{"Deployment Check:<br/>web green?"}
+  webmaster --> hold
+  hold -- yes --> live[www.findfightgyms.com]
+  hold -- "red or missing" --> stay[prod stays on the previous build]
+```
+
+- **PRs.** GitHub ruleset `master: deploy checks` requires `web` (workflow `Web quality gates`, from GitHub Actions) and `Vercel` (the preview build of `web/`). Repo admins can bypass explicitly (merge-box checkbox or `gh pr merge --admin`), which also covers direct pushes to master. Previews have no Supabase env and render the unavailable state: proof the app builds, not that data renders.
+- **master commits.** Vercel builds production right away; the Deployment Check `web` (Project → Settings → Build and Deployment → Deployment Checks) holds the production domains until the `web` run on that commit passes, for up to 30 minutes. A red or missing run leaves production on the previous build; Force Promote on the deployment page overrides it.
+- `web` runs on every PR and master commit (no path filter) because both gates wait for it. Renaming the job breaks both gates: update the ruleset and the Deployment Check in the same change.
+- **Manual.** Production ships from master. `vercel rollback` and `vercel promote <deployment-url>` switch production without a rebuild and still work from `web/`. `vercel deploy` from `web/` fails (it looks for `web/web`); if a CLI deploy is ever needed, run `vercel link` once at the repo root and deploy from there. Never `vercel --prod` from a feature branch: on 2026-09-26 a CLI deploy of an unmerged branch with uncommitted changes replaced production, and `/gyms/all` returned 404 while it was on master.
 
 ## Candidate pipeline
 

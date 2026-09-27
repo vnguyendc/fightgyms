@@ -41,4 +41,4 @@ Operational gates (Vercel config, credentials, candidate pipeline, SEO verificat
 
 ## git
 
-Remote github.com/vnguyendc/fightgyms, default branch `master`. Work lands via PRs. Vercel project `fightgyms` has git integration with Root Directory `web` (set 2026-09-27): merges to master deploy production, PRs get previews. `vercel --prod` from `web/` still works as a manual path.
+Remote github.com/vnguyendc/fightgyms, default branch `master`. Work lands via PRs; ruleset `master: deploy checks` requires `web` (GitHub Actions) and `Vercel` (preview build) to pass. Vercel project `fightgyms` has git integration with Root Directory `web` (set 2026-09-27): PRs get previews; master commits build production, and a Vercel Deployment Check holds the domain until `web` passes on that commit. Production ships from master only: never `vercel --prod` from a working tree (on 2026-09-26 a dirty branch deploy replaced prod and hid merged work). `vercel deploy` from `web/` now fails (it looks for `web/web`); `vercel rollback` / `promote` / `inspect` still work there. Pipeline, gates, manual paths: `docs/launch-operations.md`.
