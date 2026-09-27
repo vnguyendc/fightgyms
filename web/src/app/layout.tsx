@@ -3,8 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import SiteJsonLd from "@/components/SiteJsonLd";
 import SiteSearch from "@/components/SiteSearch";
-import { SITE, runtimePolicy } from "@/lib/site";
+import { SITE, layoutRobots, runtimePolicy } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -16,13 +17,14 @@ export const metadata: Metadata = {
   description: SITE.description,
   openGraph: { siteName: SITE.name, type: "website" },
   twitter: { card: "summary" },
-  robots: { index: runtimePolicy().indexable, follow: runtimePolicy().indexable },
+  robots: layoutRobots(runtimePolicy()),
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
+        <SiteJsonLd />
         <header className="border-b border-line">
           <div className="mx-auto max-w-6xl px-4 h-14 flex items-center justify-between gap-4">
             <Link href="/" className="font-semibold tracking-tight text-lg">
@@ -47,6 +49,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <span className="flex gap-4">
               <Link href="/gyms" className="hover:text-ink">All cities</Link>
               <Link href="/gyms/all" className="hover:text-ink">All gyms</Link>
+              <Link href="/about" className="hover:text-ink">About</Link>
+              <Link href="/privacy" className="hover:text-ink">Privacy</Link>
               <Link href="/claim" className="hover:text-ink">Claim or submit a gym</Link>
             </span>
           </div>

@@ -3,15 +3,15 @@ import { test } from "node:test";
 import * as site from "../src/lib/site";
 import { gym, place } from "./fixtures";
 
-test("sitemap publishes only populated public city/style paths, never samples or placeholders", () => {
+test("sitemap publishes only populated public city paths and discipline paths that differ from their city, never samples or placeholders", () => {
   assert.equal(typeof site.directorySitemap, "function");
   const places = [place, { ...place, slug: "empty-va" }];
-  const gyms = [gym, gym, { ...gym, slug: "sample-hidden", is_sample: true, styles: ["kickboxing" as const] }, { ...gym, slug: "bjj-only", styles: ["bjj" as const] }];
+  const gyms = [gym, { ...gym, slug: "both", styles: ["muay_thai" as const, "kickboxing" as const] }, { ...gym, slug: "sample-hidden", is_sample: true, styles: ["kickboxing" as const] }, { ...gym, slug: "bjj-only", styles: ["bjj" as const] }];
   const urls = site.directorySitemap(places, gyms, true, false).map(e => e.url);
   assert.deepEqual(urls, [
     "https://findfightgyms.com", "https://findfightgyms.com/gyms", "https://findfightgyms.com/gyms/all",
-    "https://findfightgyms.com/gyms/va/arlington", "https://findfightgyms.com/gyms/va/arlington/muay-thai",
-    "https://findfightgyms.com/gym/test-gym",
+    "https://findfightgyms.com/gyms/va/arlington", "https://findfightgyms.com/gyms/va/arlington/kickboxing",
+    "https://findfightgyms.com/gym/test-gym", "https://findfightgyms.com/gym/both",
   ]);
   assert.deepEqual(site.directorySitemap(places, gyms, false, true), []);
   assert.deepEqual(site.directorySitemap(places, [], true, false), []);

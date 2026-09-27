@@ -24,3 +24,19 @@ College Park, MD
 Laurel, MD
 Bowie, MD
 Columbia, MD
+# beyond the launch metro (northeast import, 2026-09)
+Annapolis, MD
+Arnold, MD
+Brunswick, MD
+Catonsville, MD
+Eldersburg, MD
+Finksburg, MD
+Forest Hill, MD
+Hagerstown, MD
+Henrico, VA
+Lorton, VA
+Richmond, VA
+Severna Park, MD
+Sparks Glencoe, MD
+Stafford, VA
+Winchester, VA

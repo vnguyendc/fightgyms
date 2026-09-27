@@ -1,0 +1,37 @@
+# City, ST — one per line. Pennsylvania, by the postal city gyms print
+Allentown, PA
+Bethlehem, PA
+Boothwyn, PA
+Bridgeville, PA
+Chalfont, PA
+Conshohocken, PA
+Doylestown, PA
+Dunmore, PA
+Erie, PA
+Exton, PA
+Fairless Hills, PA
+Folsom, PA
+Harrisburg, PA
+Hollidaysburg, PA
+Jenkintown, PA
+Johnstown, PA
+Lancaster, PA
+Latrobe, PA
+Malvern, PA
+Mechanicsburg, PA
+Monongahela, PA
+Monroeville, PA
+Newtown Square, PA
+Norristown, PA
+North Versailles, PA
+Philadelphia, PA
+Pittsburgh, PA
+Red Lion, PA
+Scranton, PA
+Shillington, PA
+Springfield, PA
+State College, PA
+Stroudsburg, PA
+West Chester, PA
+Wilkes-Barre Township, PA
+Zelienople, PA

@@ -2,7 +2,7 @@
 
 Combat sports gym directory. Database/directory SaaS + programmatic SEO play.
 Muay thai + kickboxing pages live first; MMA, BJJ stored but gated behind `LIVE_STYLES` in `web/src/lib/types.ts`.
-Canonical domain `https://findfightgyms.com`, product name FightGyms (`web/src/lib/site.ts`).
+Canonical host in production is `https://www.findfightgyms.com` (apex 308s to www; `NEXT_PUBLIC_SITE_URL` is set on Vercel, the code default is the apex). Product name FightGyms (`web/src/lib/site.ts`).
 
 Full playbook (competitors, data sources, schema rationale, pSEO routes, discipline rollout, traffic plan):
 https://claude.ai/code/artifact/4dcfe436-3410-4c99-8ea5-fa9f349c611b
@@ -12,7 +12,7 @@ Operational gates (Vercel config, credentials, candidate pipeline, SEO verificat
 
 - `web/` — Next.js 16 app router (params are Promises; `PageProps<'/route'>` helper), Tailwind v4, `@supabase/supabase-js`. ISR 1h on all directory pages. Read `web/AGENTS.md` and `node_modules/next/dist/docs` before touching Next APIs. `web/src/lib/site.ts` owns `runtimePolicy()` (live / demo / unavailable), `pageMetadata()`, `jsonLd()`, `cityPath()`, sitemap rules. `lib/geo.ts` (distance, completeness, coverage), `lib/format.ts` (client-safe display helpers), `lib/search.ts` (index matcher), `lib/submissions.ts` (correction parsing + pending insert), `lib/auth.ts` (ssr cookie sessions, request/page clients), `lib/claims.ts` (claim parsing + own rows), `src/proxy.ts` (session refresh on /claim only). Tests in `web/tests` (see its README).
 - `supabase/migrations/0001_init.sql` — schema + RLS + views. `0002_photos.sql` — `gym_photos` + `gym-photos` storage bucket, adds `photo_path` to `gym_cards`. `0003_gym_cards_v3.sql` — adds `trial_cents`, `class_count` to `gym_cards`. `0004_submissions_policy.sql` — pending-only, bounded insert policy on `submissions`. `0005_claims.sql` — claims columns/policies/triggers, `new_gym` submissions, reviewer views. `supabase/seed.sql` — 6 fictional demo gyms flagged `is_sample`.
-- `scrapers/` — python 3.12. `seed_places.py` (Google Places → gyms; legacy, review provider terms before reuse), `extract_site.py` (crawl → Claude Haiku structured output → validated prices/classes), `fetch_photos.py` (site images → Haiku vision filter → storage), `public_candidates.py` (reviewed public-source candidate queue/importer, the intended recurring discovery path), `jev_triage.py` (optional shadow triage; never publishes), `run_sql.py` (migrations / one-off sql without psql). Tests: `python -m unittest discover -s scrapers/tests` from the repo root.
+- `scrapers/` — python 3.12. `seed_places.py` (Google Places → gyms; legacy, review provider terms before reuse), `extract_site.py` (crawl → Claude Haiku structured output → validated prices/classes), `fetch_photos.py` (site images → Haiku vision filter → storage), `public_candidates.py` (reviewed public-source candidate queue/importer, the intended recurring discovery path; scoped by the region lists in `cities/*.txt`: DMV, NYC, NJ, PA), `geocode_census.py` (census geocoder → lat/lng for gyms without coordinates), `jev_triage.py` (optional shadow triage; never publishes), `run_sql.py` (migrations / one-off sql without psql). Tests: `python -m unittest discover -s scrapers/tests` from the repo root.
 
 ## how it runs
 
@@ -41,4 +41,4 @@ Operational gates (Vercel config, credentials, candidate pipeline, SEO verificat
 
 ## git
 
-Remote github.com/vnguyendc/fightgyms, default branch `master`. Work lands via PRs. Vercel project `fightgyms` deploys `web/` (currently via CLI, not git integration).
+Remote github.com/vnguyendc/fightgyms, default branch `master`. Work lands via PRs; ruleset `master: deploy checks` requires `web` (GitHub Actions) and `Vercel` (preview build) to pass. Vercel project `fightgyms` has git integration with Root Directory `web` (set 2026-09-27): PRs get previews; master commits build production, and a Vercel Deployment Check holds the domain until `web` passes on that commit. Production ships from master only: never `vercel --prod` from a working tree (on 2026-09-26 a dirty branch deploy replaced prod and hid merged work). `vercel deploy` from `web/` now fails (it looks for `web/web`); `vercel rollback` / `promote` / `inspect` still work there. Pipeline, gates, manual paths: `docs/launch-operations.md`.

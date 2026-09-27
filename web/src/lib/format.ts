@@ -24,6 +24,13 @@ export function miles(distance: number): string {
   return `${distance < 10 ? distance.toFixed(1) : Math.round(distance)} mi`;
 }
 
+/** The printed address, plus city and state when it names only the street ("67 Ingraham St"). */
+export function fullAddress(g: { address: string | null; city: string | null; state: string | null }): string | null {
+  if (!g.address) return null;
+  const printed = /\b\d{5}(?:-\d{4})?\b/.test(g.address) || (!!g.city && g.address.toLowerCase().includes(`, ${g.city.toLowerCase()}`));
+  return printed || !g.city ? g.address : `${g.address}, ${g.city}, ${g.state}`;
+}
+
 /** "DC, MD and VA" from any list of state codes. */
 export function listStates(states: string[]): string {
   const s = [...new Set(states)].sort();

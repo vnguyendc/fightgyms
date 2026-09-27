@@ -1,3 +1,4 @@
+import { money } from "./format";
 import type { GymCard, Place } from "./types";
 
 type LatLng = { lat: number | null; lng: number | null };
@@ -60,11 +61,12 @@ export function withDistances(gyms: GymCard[], origin: { lat: number; lng: numbe
   return [...near, ...gyms.filter((g) => !seen.has(g.slug)).map((gym) => ({ gym, distanceMi: null }))];
 }
 
+export const NEARBY_RADIUS_MI = 25;
 export type NearbyPlace = { place: Place; distanceMi: number; count: number };
 
 /** Other populated places within radiusMi, nearest first. */
 export function nearbyPlaces(origin: Place, places: Place[], counts: Map<string, number>, opts: { radiusMi?: number; limit?: number } = {}): NearbyPlace[] {
-  const { radiusMi = 25, limit = 6 } = opts;
+  const { radiusMi = NEARBY_RADIUS_MI, limit = 6 } = opts;
   const others = places.filter((p) => p.slug !== origin.slug && (counts.get(p.slug) ?? 0) > 0);
   return nearest(origin, others).filter((x) => x.distanceMi <= radiusMi).slice(0, limit)
     .map(({ item, distanceMi }) => ({ place: item, distanceMi, count: counts.get(item.slug) ?? 0 }));
@@ -94,6 +96,26 @@ export function coverage(gyms: GymCard[]): Coverage {
     priced: gyms.filter(hasPrice).length,
     scheduled: gyms.filter(hasSchedule).length,
   };
+}
+
+/** One plain sentence a reader or a search engine can quote; every number comes from the listed rows. Empty when nothing is listed. */
+export function listingSummary(label: string, place: Pick<Place, "city" | "state">, gyms: GymCard[]): string {
+  const n = gyms.length;
+  if (!n) return "";
+  const priced = gyms.filter(hasPrice).length;
+  const entry = gyms.flatMap((g) => [g.trial_cents, g.drop_in_cents]).filter((c): c is number => c != null);
+  let text = `${n} ${label} gym${n === 1 ? " is" : "s are"} listed in ${place.city}, ${place.state}.`;
+  if (priced) {
+    text += n === 1 ? " It lists a price" : ` ${priced} of them list${priced === 1 ? "s" : ""} a price`;
+    text += entry.length ? `; trial or drop-in classes start at ${money(Math.min(...entry))}.` : ".";
+  }
+  return text;
+}
+
+/** Nearby cities within the radius, or, for an isolated city, the closest three listed cities anywhere. */
+export function nearbyOrNearest(origin: Place, places: Place[], counts: Map<string, number>): NearbyPlace[] {
+  const near = nearbyPlaces(origin, places, counts);
+  return near.length ? near : nearbyPlaces(origin, places, counts, { radiusMi: Infinity, limit: 3 });
 }
 
 /** "11 gyms · 8 beginner friendly · 3 with a listed price · 4 with a schedule"; zero parts are left out. */

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { existsSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import CityPage from "../src/components/CityPage";
+import SiteJsonLd from "../src/components/SiteJsonLd";
 import GymCard from "../src/components/GymCard";
 import SiteSearch from "../src/components/SiteSearch";
 import SuggestionList from "../src/components/SuggestionList";
@@ -12,14 +13,20 @@ import { gym, place } from "./fixtures";
 test("city structured data cannot break out of a script; card UI does not republish Google stars", () => {
   const hostileGym = { ...gym, name: '</script><script>alert("x")</script> & \u2028', tags: ["beginner_friendly" as const] };
   const html = renderToStaticMarkup(<CityPage place={place} gyms={[hostileGym]} />);
-  assert.equal((html.match(/<script/g) ?? []).length, 1);
-  const json = html.match(/type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1];
-  assert.ok(json);
-  assert.equal(JSON.parse(json).itemListElement[0].name, hostileGym.name);
+  const blocks = [...html.matchAll(/type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+  assert.equal((html.match(/<script/g) ?? []).length, 2, "ItemList + BreadcrumbList, nothing else");
+  assert.equal(blocks[0].itemListElement[0].name, hostileGym.name);
+  assert.equal(blocks[1]["@type"], "BreadcrumbList");
+  assert.deepEqual(blocks[1].itemListElement.map((i: { name: string; item: string }) => [i.name, i.item]),
+    [["Gyms", "https://findfightgyms.com/gyms"], ["Arlington, VA", "https://findfightgyms.com/gyms/va/arlington"]]);
+  const styled = renderToStaticMarkup(<CityPage place={place} gyms={[hostileGym]} cityGyms={[hostileGym, { ...gym, styles: ["kickboxing"] }]} style="muay_thai" />);
+  const crumbs = [...styled.matchAll(/type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]))[1];
+  assert.deepEqual(crumbs.itemListElement.map((i: { name: string; item: string; position: number }) => [i.position, i.name, i.item]),
+    [[1, "Gyms", "https://findfightgyms.com/gyms"], [2, "Arlington, VA", "https://findfightgyms.com/gyms/va/arlington"], [3, "Muay Thai", "https://findfightgyms.com/gyms/va/arlington/muay-thai"]]);
   assert.doesNotMatch(html, /free or cheap first class|dedicated beginner|Ranked by|typical drop-in/);
   assert.doesNotMatch(renderToStaticMarkup(<GymCard gym={gym} />), /★|reviews/);
   assert.match(html, /href="\/gym\/test-gym"/);
-  assert.doesNotMatch(html, /href="\/gyms\/va\/arlington\/kickboxing"/);
+  assert.doesNotMatch(html, /href="\/gyms\/va\/arlington\/(muay-thai|kickboxing)"/, "a chip must not link a discipline page identical to this one");
 });
 
 test("route failures have an explicit retry state without exposing backend errors", async () => {
@@ -113,4 +120,30 @@ test("suggestion list renders options with ids, hrefs, the active item and the l
   assert.doesNotMatch(noLocate, /Use my location/);
   assert.match(noLocate, /id="s-listbox-0"[^>]*aria-selected="true"[\s\S]*?href="\/gyms\/va\/arlington"/);
   assert.equal((noLocate.match(/role="option"/g) ?? []).length, 2);
+});
+
+test("city pages open with the listing summary and label nearby cities by whether they are within the radius", () => {
+  const html = renderToStaticMarkup(<CityPage place={place} gyms={[gym]} nearby={[{ place: { ...place, slug: "fairfax-va", city: "Fairfax" }, distanceMi: 12, count: 3 }]} />);
+  assert.match(html, /1 Muay Thai &amp; Kickboxing gym is listed in Arlington, VA\. It lists a price; trial or drop-in classes start at \$30\./);
+  assert.match(html, /within about 25 miles of Arlington/);
+  const far = renderToStaticMarkup(<CityPage place={place} gyms={[gym]} nearby={[{ place: { ...place, slug: "winchester-va", city: "Winchester" }, distanceMi: 62, count: 1 }]} />);
+  assert.match(far, /No other listed cities within 25 miles of Arlington\. Nearest listed cities:/);
+  assert.match(far, /href="\/gyms\/va\/winchester"[^>]*>Winchester, VA <span[^>]*>\(1 · 62 mi\)/);
+  assert.doesNotMatch(far, /within about 25 miles/);
+});
+
+test("site-wide JSON-LD names the publisher and the working search endpoint, escaped, in one script", () => {
+  const html = renderToStaticMarkup(<SiteJsonLd />);
+  assert.equal((html.match(/<script/g) ?? []).length, 1);
+  const graph = JSON.parse(html.match(/type="application\/ld\+json">([\s\S]*?)<\/script>/)![1])["@graph"];
+  const website = graph.find((n: { "@type": string }) => n["@type"] === "WebSite");
+  const org = graph.find((n: { "@type": string }) => n["@type"] === "Organization");
+  assert.equal(website.url, "https://findfightgyms.com");
+  assert.equal(website.potentialAction["@type"], "SearchAction");
+  assert.equal(website.potentialAction.target, "https://findfightgyms.com/search?q={search_term_string}");
+  assert.equal(website.potentialAction["query-input"], "required name=search_term_string");
+  assert.equal(org.name, "FightGyms");
+  assert.equal(org.url, "https://findfightgyms.com");
+  assert.equal(website.publisher["@id"], org["@id"]);
+  assert.doesNotMatch(html, /aggregateRating|sameAs/);
 });

@@ -15,15 +15,20 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 MAX_QUEUE = 500
+CITIES = Path(__file__).with_name("cities")  # every *.txt region list; "City, ST" per line
 STYLES = {"muay_thai": "muay thai", "kickboxing": "kickboxing", "dutch_kickboxing": "dutch kickboxing"}
 FIELDS = {"schema_version", "synthetic", "public_content", "official_site", "single_location",
           "official_url", "name", "address", "city", "state", "country", "styles", "discovered_at",
           "pages", "evidence"}
 SENSITIVE = re.compile(r"password[\"']?\s*[:=]|secret[\"']?\s*[:=]|token[\"']?\s*[:=]|"
                        r"api[_-]?key[\"']?\s*[:=]|\bbearer\s|authorization\s*:|"
-                       r"-----BEGIN .*PRIVATE KEY|postgres(?:ql)?://|https?://[^/\s]*@|"
+                       r"-----BEGIN .*PRIVATE KEY|postgres(?:ql)?://|https?://[^/\s\"'<>]*@|"
                        r"\b\d{3}-\d{2}-\d{4}\b", re.I)
-UNCERTAIN = re.compile(r"\b(?:not|no|never|closed|closing|ceased|formerly|previously|planned|"
+# spelled-out names for the states that have a region city list ("Rockaway, New Jersey 07866")
+STATE_NAMES = {"DC": ("District of Columbia", "D C"), "MD": ("Maryland",), "VA": ("Virginia",),
+               "NY": ("New York",), "NJ": ("New Jersey",), "PA": ("Pennsylvania",)}
+# "No-Gi" is a grappling class, not a negation
+UNCERTAIN = re.compile(r"\b(?:not|no(?![\s-]gi\b)|never|closed|closing|ceased|formerly|previously|planned|"
                        r"discontinued|unavailable|might|maybe)\b|coming soon|used to|do not|don't", re.I)
 
 
@@ -77,6 +82,13 @@ def supports(value, quote):
     return (" " + normalized(value) + " ") in (" " + normalized(quote) + " ")
 
 
+def supports_state(state, quote):
+    """The two-letter code or the state's printed name; West Virginia is not Virginia."""
+    return supports(state, quote) or (
+        any(supports(name, quote) for name in STATE_NAMES.get(state, ()))
+        and not (state == "VA" and supports("West Virginia", quote)))
+
+
 
 def canonical(value):
     return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
@@ -96,9 +108,10 @@ def validate(record, *, now=None):
             "attestation_required")
     for key, bound in (("name", 160), ("address", 240), ("city", 80), ("state", 2), ("country", 2)):
         text(record[key], bound)
-    require(re.match(r"^\d+[A-Za-z-]*\s+\S+\s+\S+", record["address"]), "invalid_address")
-    scope = {tuple(line.split(", ")) for line in Path(__file__).with_name("cities").joinpath("dmv.txt")
-             .read_text().splitlines() if line and not line.startswith("#")}
+    # queens house numbers are hyphenated: 37-18 Main Street
+    require(re.match(r"^\d+(?:-\d+)?[A-Za-z-]*\s+\S+\s+\S+", record["address"]), "invalid_address")
+    scope = {tuple(line.split(", ")) for f in sorted(CITIES.glob("*.txt"))
+             for line in f.read_text().splitlines() if line and not line.startswith("#")}
     require(record["country"] == "US" and (record["city"], record["state"]) in scope, "out_of_scope")
     styles = record["styles"]
     require(isinstance(styles, list) and 1 <= len(styles) <= 3
@@ -130,10 +143,13 @@ def validate(record, *, now=None):
     require(isinstance(evidence, dict) and set(evidence) == {"name", "location", "styles"})
     require(isinstance(evidence["styles"], dict) and set(evidence["styles"]) == set(styles))
 
-    def quote(item):
+    def quote(item, lines=1):
         require(isinstance(item, dict) and set(item) == {"url", "quote"})
         text(item["url"], 2048)
-        q = text(item["quote"], 800)
+        q = item["quote"]
+        require(isinstance(q, str) and q.count("\n") < lines and len(q) <= 800)
+        for line in q.split("\n"):
+            text(line, 800)
         require(item["url"] in by_url and q in by_url[item["url"]], "quote_not_found")
         require(not UNCERTAIN.search(q), "unsupported_value")
         # Check complete source sentences, not just a potentially cropped assertion.
@@ -146,9 +162,11 @@ def validate(record, *, now=None):
         return q
 
     require(supports(record["name"], quote(evidence["name"])), "unsupported_value")
-    location = quote(evidence["location"])
-    require(all(supports(record[k], location) for k in ("address", "city", "state"))
-            and any(supports(v, location) for v in ("US", "USA", "United States")), "unsupported_value")
+    # a wrapped address block: street / city, state zip / country. country is US by scope: every
+    # region list is US city/state pairs, and gym sites rarely print the country.
+    location = quote(evidence["location"], lines=3)
+    require(all(supports(record[k], location) for k in ("address", "city"))
+            and supports_state(record["state"], location), "unsupported_value")
     for style in styles:
         q = quote(evidence["styles"][style])
         require(supports(STYLES[style], q) and re.search(
@@ -447,9 +465,10 @@ JSONL v1: exactly these keys; all fields required, no extra metadata:
   public_content, official_site, single_location: literal true attestations
   official_url: official location website HTTP(S) URL (max 2048 characters)
   name: nonempty string <=160; address: physical street string <=240,
-    starting with street number and >=2 following words (not a PO box)
-  city: string <=80 exactly as in scrapers/cities/dmv.txt; state: VA, MD or DC
-    paired with that city; country: literal "US"
+    starting with street number (Queens-style 37-18 allowed) and >=2 following
+    words (not a PO box)
+  city: string <=80 exactly as listed in a scrapers/cities/*.txt region file;
+    state: the two-letter state paired with that city there; country: literal "US"
   styles: unique nonempty array containing only muay_thai, kickboxing,
     dutch_kickboxing (max 3); unrelated disciplines are rejected, not guessed
   discovered_at: timezone-aware ISO-8601 timestamp
@@ -458,15 +477,17 @@ JSONL v1: exactly these keys; all fields required, no extra metadata:
     redirect_chain (1..5 URLs including initial request and final url, in order)
   evidence: exactly name, location, styles:
     name: {"url": "<page url>", "quote": "<exact name-bearing quote>"}
-    location: {"url": "<page url>", "quote": "<exact address, city, state, country quote>"}
+    location: {"url": "<page url>", "quote": "<exact address, city, state quote>"}
     styles: {"muay_thai": {"url": "<page url>", "quote": "<exact offering quote>"}, ...}
 
-Quotes are nonempty <=800-character exact substrings, each supporting its value
-on word boundaries (case/spacing/punctuation/accent-insensitive value matching).
-One location quote must contain address, city, state and US/USA/United States.
-State/country abbreviation inference is intentionally NOT performed. Each style
-quote must contain its readable name (e.g. Muay Thai) plus offer/teach/classes/
-training/lessons wording; negative/uncertain quotes and known closure language
+Quotes are nonempty <=800-character exact single-line substrings, each supporting
+its value on word boundaries (case/spacing/punctuation/accent-insensitive value
+matching). One location quote, which may wrap over up to three lines of one
+address block, must contain address, city and the state, as its two-letter code
+or its printed name for the region states (New Jersey, D.C., ...; West Virginia
+is not Virginia). The country is US by scope (every region list is US city/state
+pairs), so it need not be printed. Each style quote must contain its readable name (e.g. Muay Thai) plus offer/
+teach/classes/training/lessons wording; negative/uncertain quotes and known closure language
 are rejected. official_url is supported by the official_site attestation and
 same-host pages, not by an invented quote of a URL. All page/redirect hosts must
 match official_url (www alias allowed). Named hosts only: no IP literals, local

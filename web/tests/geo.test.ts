@@ -65,3 +65,36 @@ test("coverage line omits zero parts; formatting helpers", () => {
   assert.equal(listStates(["VA"]), "VA");
   assert.equal(listStates([]), "");
 });
+
+test("listing summary is one quotable sentence built only from listed counts and prices", () => {
+  assert.equal(typeof geo.listingSummary, "function");
+  const dropIn = { ...gym, trial_cents: null, drop_in_cents: 3000, monthly_cents: null };
+  const trial = { ...gym, slug: "t", trial_cents: 4900, drop_in_cents: null, monthly_cents: 15000 };
+  const monthlyOnly = { ...gym, slug: "m", trial_cents: null, drop_in_cents: null, monthly_cents: 12000 };
+  const none = { ...gym, slug: "n", trial_cents: null, drop_in_cents: null, monthly_cents: null };
+  assert.equal(geo.listingSummary("Muay Thai", place, [dropIn]),
+    "1 Muay Thai gym is listed in Arlington, VA. It lists a price; trial or drop-in classes start at $30.");
+  assert.equal(geo.listingSummary("Muay Thai & Kickboxing", place, [trial, dropIn, none]),
+    "3 Muay Thai & Kickboxing gyms are listed in Arlington, VA. 2 of them list a price; trial or drop-in classes start at $30.");
+  assert.equal(geo.listingSummary("Kickboxing", place, [monthlyOnly, none]),
+    "2 Kickboxing gyms are listed in Arlington, VA. 1 of them lists a price.");
+  assert.equal(geo.listingSummary("Kickboxing", place, [monthlyOnly]), "1 Kickboxing gym is listed in Arlington, VA. It lists a price.");
+  assert.equal(geo.listingSummary("Kickboxing", place, [none]), "1 Kickboxing gym is listed in Arlington, VA.");
+  assert.equal(geo.listingSummary("Kickboxing", place, []), "");
+});
+
+test("nearby-or-nearest falls back to the closest listed cities when none are within the radius", () => {
+  assert.equal(typeof geo.nearbyOrNearest, "function");
+  const mk = (slug: string, lat: number, lng: number) => ({ ...place, slug, city: slug, lat, lng });
+  const close = mk("close-va", 38.95, -77.1);          // ~5 mi
+  const far1 = mk("far1-va", 39.6, -77.1);             // ~50 mi
+  const far2 = mk("far2-va", 40.0, -77.1);             // ~77 mi
+  const far3 = mk("far3-va", 40.5, -77.1);
+  const far4 = mk("far4-va", 41.0, -77.1);
+  const counts = new Map([["close-va", 2], ["far1-va", 1], ["far2-va", 3], ["far3-va", 1], ["far4-va", 1]]);
+  assert.deepEqual(geo.nearbyOrNearest(place, [place, close, far1], counts).map((x) => x.place.slug), ["close-va"], "within radius: unchanged behaviour");
+  const fallback = geo.nearbyOrNearest(place, [place, far1, far2, far3, far4], counts);
+  assert.deepEqual(fallback.map((x) => x.place.slug), ["far1-va", "far2-va", "far3-va"], "nearest three, nearest first");
+  assert.ok(fallback.every((x) => x.distanceMi > 25));
+  assert.deepEqual(geo.nearbyOrNearest(place, [place], counts), []);
+});

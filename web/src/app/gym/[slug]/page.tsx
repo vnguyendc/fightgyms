@@ -5,9 +5,9 @@ import CorrectionForm from "@/components/CorrectionForm";
 import { Badge, FighterBadge } from "@/components/GymCard";
 import { GymPhoto } from "@/components/GymPhoto";
 import { getAllGyms, getGym, getPlace } from "@/lib/data";
-import { DOW, fmtTime, miles, money, photoUrl } from "@/lib/format";
+import { DOW, fmtTime, fullAddress, miles, money, photoUrl } from "@/lib/format";
 import { nearestGyms } from "@/lib/geo";
-import { SITE, cityPath, jsonLd as serializeJsonLd, pageMetadata, runtimePolicy, safeExternalUrl } from "@/lib/site";
+import { SITE, breadcrumbJsonLd, cityPath, distinctStyleListing, jsonLd as serializeJsonLd, pageMetadata, runtimePolicy, safeExternalUrl } from "@/lib/site";
 import { LIVE_STYLES, STYLE_LABEL, TAG_LABEL, type Price } from "@/lib/types";
 
 export const revalidate = 3600;
@@ -87,6 +87,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd([{ name: "Gyms", path: "/gyms" }, ...(place ? [{ name: `${place.city}, ${place.state}`, path: cityHref }] : []), { name: g.name, path: `/gym/${g.slug}` }])) }} />
       <nav className="text-sm text-muted mb-4">
         <Link href="/gyms" className="hover:text-ink">Gyms</Link> /{" "}
         <Link href={cityHref} className="hover:text-ink">{g.city}, {g.state}</Link> / {g.name}
@@ -124,7 +125,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
             {g.name}
             {g.claimed && <span className="ml-3 text-accent text-base align-middle">✓ claimed</span>}
           </h1>
-          <p className="mt-2 text-muted">{g.address}</p>
+          <p className="mt-2 text-muted">{fullAddress(g)}</p>
           {trust && <p className="mt-1 text-xs text-muted">{trust}</p>}
           <div className="mt-3 flex flex-wrap gap-1.5">
             {g.styles.map((s) => <Badge key={s} tone="accent">{STYLE_LABEL[s] ?? s}</Badge>)}
@@ -256,7 +257,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
               {website && <a href={website} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">Website ↗</a>}
               {g.instagram && <a href={`https://instagram.com/${g.instagram.replace(/^@/, "")}`} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">@{g.instagram.replace(/^@/, "")}</a>}
               {g.phone && <a href={`tel:${g.phone}`} className="block underline hover:text-accent">{g.phone}</a>}
-              {g.address && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(g.address)}`} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">Directions ↗</a>}
+              {g.address && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress(g) ?? g.address)}`} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">Directions ↗</a>}
             </div>
             {g.founded_year && <div className="mt-4 text-xs text-muted">Est. {g.founded_year}</div>}
           </div>
@@ -293,7 +294,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
               <>
                 <Link href={cityHref} className={`${nearby.length ? "mt-3" : ""} block underline`}>All gyms in {place.city}</Link>
                 {g.styles.filter((s) => LIVE_STYLES.includes(s)).map((s) => (
-                  <Link key={s} href={cityPath(place, s)} className="mt-2 block underline">{STYLE_LABEL[s]} in {place.city}</Link>
+                  <Link key={s} href={distinctStyleListing(all.filter((x) => x.place_slug === place.slug), s) ? cityPath(place, s) : cityPath(place)} className="mt-2 block underline">{STYLE_LABEL[s]} in {place.city}</Link>
                 ))}
               </>
             )}
