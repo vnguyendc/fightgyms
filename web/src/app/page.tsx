@@ -5,7 +5,7 @@ import SiteSearch from "@/components/SiteSearch";
 import { getAllGyms, getPlaces } from "@/lib/data";
 import { listStates } from "@/lib/format";
 import { byCompleteness, placeCounts } from "@/lib/geo";
-import { SITE, cityPath, pageMetadata } from "@/lib/site";
+import { SITE, cityPath, distinctStyleListing, pageMetadata } from "@/lib/site";
 import { LIVE_STYLES, STYLE_LABEL } from "@/lib/types";
 
 export const revalidate = 3600;
@@ -66,6 +66,9 @@ export default async function Home() {
             <GymCard key={g.id} gym={g} />
           ))}
         </div>
+        {gyms.length > 0 && (
+          <p className="mt-4 text-sm"><Link href="/gyms/all" className="text-muted hover:text-ink">all {gyms.length} gyms →</Link></p>
+        )}
       </section>
 
       <section className="py-8 grid gap-6 md:grid-cols-3">
@@ -81,7 +84,7 @@ export default async function Home() {
         <h2 className="text-xl font-semibold mb-3">Browse by discipline</h2>
         <div className="flex flex-wrap gap-2">
           {LIVE_STYLES.map((s) =>
-            cities.filter((p) => gyms.some((g) => g.place_slug === p.slug && g.styles.includes(s))).slice(0, 4).map((p) => (
+            cities.filter((p) => distinctStyleListing(gyms.filter((g) => g.place_slug === p.slug), s)).slice(0, 4).map((p) => (
               <Link key={s + p.slug} href={cityPath(p, s)} className="text-sm text-muted hover:text-ink underline">
                 {STYLE_LABEL[s]} in {p.city}
               </Link>

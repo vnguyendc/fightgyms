@@ -21,7 +21,10 @@ export default async function GymsIndex() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <h1 className="text-3xl font-semibold tracking-tight">Gyms by city</h1>
-      <p className="text-muted mt-2">{gyms.length} gyms across {places.length} cities.</p>
+      <p className="text-muted mt-2">
+        {gyms.length} gyms across {places.length} cities.
+        {gyms.length > 0 && <>{" "}<Link href="/gyms/all" className="underline hover:text-ink">Browse all gyms →</Link></>}
+      </p>
       {!places.length && <DirectoryState />}
       <div className="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
         {[...byState.entries()].sort().map(([state, ps]) => (

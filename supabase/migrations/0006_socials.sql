@@ -1,7 +1,7 @@
 -- fightgyms: gym social profiles
 -- one active row per (gym, platform), found on the gym's own website by scrapers/fetch_photos.py
 -- or added by a verified claimant. rows are never deleted; is_active=false hides them.
--- run with: cd scrapers && python run_sql.py ../supabase/migrations/0005_socials.sql
+-- run with: cd scrapers && python run_sql.py ../supabase/migrations/0006_socials.sql
 
 create table if not exists gym_socials (
   id          uuid primary key default gen_random_uuid(),

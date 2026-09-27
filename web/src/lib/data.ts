@@ -1,6 +1,8 @@
 /** Read-only public directory access. Samples require explicit non-production demo mode. */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import sample from "@/data/sample.json";
+import { byName } from "./geo";
+import { pageCount } from "./listing";
 import { runtimePolicy } from "./site";
 import { LIVE_STYLES, SOCIAL_ORDER, type Event, type GymCard, type GymDetail, type Photo, type Place, type Social, type Style } from "./types";
 
@@ -91,6 +93,15 @@ export async function getGymCard(slug: string): Promise<GymCard | null> {
   return card && visible(card) && live(card) ? card : null;
 }
 
+/** Cards for a set of ids, for a signed-in visitor's own claims and submissions. Samples never appear. */
+export async function getGymCardsByIds(ids: string[]): Promise<GymCard[]> {
+  if (!ids.length) return [];
+  const c = sb();
+  if (!c) return demo() ? S.gyms.filter((g) => ids.includes(g.id)) : [];
+  const rows: GymCard[] = await checked(c.from("gym_cards").select("*").in("id", ids).eq("is_sample", false)) ?? [];
+  return rows.filter(visible);
+}
+
 export async function getGym(slug: string): Promise<GymDetail | null> {
   const c = sb();
   if (!c) {
@@ -133,4 +144,11 @@ export async function getUpcomingEvents(state?: string): Promise<Event[]> {
   const rows = await checked(q) as (Event & { places?: { state: string } })[] | null;
   return (rows ?? []).filter((e) => !e.slug.startsWith("sample-") && e.date && e.date >= today &&
     (!state || e.places?.state === state));
+}
+
+/** The full public listing, A–Z by name then slug (never by Google rating), plus the page count for /gyms/all. */
+export async function getAllGymsListing(): Promise<{ gyms: GymCard[]; cities: number; pages: number }> {
+  const gyms = [...await getAllGyms()].sort(byName);
+  const cities = new Set(gyms.map((g) => g.place_slug).filter(Boolean)).size;
+  return { gyms, cities, pages: pageCount(gyms.length) };
 }

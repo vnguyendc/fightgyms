@@ -1,6 +1,6 @@
 # Web launch checks
 
-Run from `web/` using Node 22 (the CI version):
+Run from `web/` using Node 24 (`engines.node`, which CI and Vercel both use):
 
 ```sh
 npm ci
@@ -11,20 +11,21 @@ npm run build
 npm run test:smoke
 ```
 
-The smoke command starts/stops a local production server on port 3108 (`SMOKE_PORT` overrides it). It requires an **unconfigured production build**: unset both Supabase variables before building and running it. It checks actual HTTP HTML, status codes, canonicals, noindex, robots and sitemap. Unit/render tests use clearly labeled fixtures and stub only Supabase's HTTP transport; they never access or write an external database.
+The smoke command starts/stops a local production server on port 3108 (`SMOKE_PORT` overrides it). It requires an **unconfigured production build**: unset both Supabase variables before building and running it. A `web/.env.local` is loaded by `next build` even when the variables are unset in the shell, so with one present set them to empty strings instead: `NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= npm run build && NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= npm run test:smoke`. It checks actual HTTP HTML, status codes, canonicals, noindex, robots and sitemap. Unit/render tests use clearly labeled fixtures and stub only Supabase's HTTP transport; they never access or write an external database.
 
 ## Production environment
 
-- `NEXT_PUBLIC_SITE_URL=https://findfightgyms.com` (also the default). Overrides must be HTTPS origins without credentials, path, query or fragment. Local HTTP is accepted only in development. Invalid overrides fail the build rather than publishing bad canonicals.
+- `NEXT_PUBLIC_SITE_URL=https://www.findfightgyms.com` in production (the apex 308s to www; the code default is the apex, so set this explicitly). Overrides must be HTTPS origins without credentials, path, query or fragment. Local HTTP is accepted only in development. Invalid overrides fail the build rather than publishing bad canonicals.
 - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` must both be configured. Use the public anonymous key with the existing public-read schema/RLS, **not** a service-role key. Configuration alone is not proof of database reachability or correct RLS.
 - Leave `SHOW_SAMPLE` unset or `0`. Production never serves bundled samples, even with `SHOW_SAMPLE=1`; that flag also disables indexing.
 - Vercel sets `VERCEL_ENV`: only `production` (or unset for self-hosted production) is eligible for indexing. Preview/development and explicit non-production demo mode are always noindex and have an empty sitemap.
 - `SHOW_SAMPLE=1` opts non-production environments into a clearly labeled, fictional demo instead of a live backend. No demo URLs enter the sitemap.
+- Analytics and monitoring need no environment variables. `@vercel/analytics` and `@vercel/speed-insights` are mounted in the root layout and only send data when the Vercel project has **Web Analytics** and **Speed Insights** switched on (Project → Analytics / Speed Insights → Enable); off Vercel they are inert. Server errors are written by `src/instrumentation.ts` as one JSON line (`"event":"request_error"`, with `digest`, `route`, `path` without query, no headers) to stderr, which Vercel keeps in Runtime Logs / Observability. The route error boundary shows the same `digest` as `Reference …` so a user report can be matched to that line. `POST /api/submissions` records a `correction_submitted` custom event (field name only) after a successful insert.
 - Redeploy after environment changes. Pages/sitemap use the existing one-hour revalidation period. A missing-config build is intentionally safe to preview but **not an SEO launch**: noindex, empty sitemap, visible unavailable state, fictional detail routes return 404.
 
 ## Data contract / publishing
 
-Reads use `gym_cards` (migration 0003 adds `trial_cents` and `class_count`; rows without them render as missing data, not errors), `places`, `gyms`, `gym_current_prices`, `classes`, `coaches`, `fighters`, `events`, `gym_photos`, `gym_socials`. The only write path is `POST /api/submissions`, which inserts `status='pending'` rows into `submissions` through the anon key, never updates directory tables, and returns 503 outside the live directory. Migration 0004 makes the row-level policy enforce the same limits, since the anon key is public and the route is not a security boundary. Keep `LIVE_STYLES` at `muay_thai` and `kickboxing`.
+Reads use `gym_cards` (migration 0003 adds `trial_cents` and `class_count`; rows without them render as missing data, not errors), `places`, `gyms`, `gym_current_prices`, `classes`, `coaches`, `fighters`, `events`, `gym_photos`, `gym_socials`. Write paths insert pending rows only: `POST /api/submissions` (corrections, anonymous or attributed to a signed-in visitor), `POST /api/submissions/gym` (a new gym, signed-in only) and `POST /api/claims` (a claim, signed-in only). Sign-in is a Supabase magic link with httpOnly cookie sessions (`src/proxy.ts` refreshes them on `/claim` only); every handler returns 503 outside the live directory. Migrations 0004 and 0005 make row-level security enforce the same limits, since the anon key is public and no route is a security boundary. The migration test runs the whole chain on PGlite. Keep `LIVE_STYLES` at `muay_thai` and `kickboxing`.
 
 Publish real active gym rows with `is_sample=false`, stable slugs, public discipline(s), and matching place records. Reserve the `sample-` slug prefix for fictional fixtures. Existing event seeds have no `is_sample` column, so `sample-*` event slugs are explicitly excluded. Do not put fictional events under ordinary slugs. Google rating fields remain stored but are not displayed, ranked on, or emitted as aggregate ratings.
 

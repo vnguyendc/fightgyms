@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { parseCents, parseSubmission } from "../src/lib/submissions";
 import { gym } from "./fixtures";
+import { TEST_USER, sessionCookie, userJson } from "./session";
 
 const live = { NODE_ENV: "production", VERCEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:1", NEXT_PUBLIC_SUPABASE_ANON_KEY: "test-only-not-real" };
 function unconfigured() {
@@ -94,5 +95,32 @@ test("route validates, looks up the gym, inserts a pending row and redirects wit
       ? new Response(JSON.stringify({ message: "denied" }), { status: 403 })
       : Response.json(gym));
   assert.equal(url(await route.POST(post(good))).search, "?error=1&gym=test-gym", "a failed insert is never a thank-you");
+  unconfigured();
+});
+
+test("a signed-in correction carries submitted_by through the user's client; a bad cookie stays anonymous", async (t) => {
+  Object.assign(process.env, live);
+  delete process.env.SHOW_SAMPLE;
+  const calls: { url: string; body: string; auth: string | null }[] = [];
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const u = String(input instanceof Request ? input.url : input);
+    const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+    calls.push({ url: u, body: typeof init?.body === "string" ? init.body : "", auth: headers.get("authorization") });
+    if (u.includes("/auth/v1/user")) return Response.json(userJson());
+    if (u.includes("/gym_cards")) return Response.json(gym);
+    if (u.includes("/submissions")) return new Response(null, { status: 201 });
+    return Response.json([]);
+  });
+  const route = await import("../src/app/api/submissions/route");
+  const withCookie = (cookie: string) => { const r = post(good); r.headers.set("cookie", cookie); return r; };
+  assert.equal(url(await route.POST(withCookie(sessionCookie()))).search, "?submitted=1&gym=test-gym");
+  let insert = calls.find((c) => c.url.includes("/submissions"))!;
+  assert.deepEqual(JSON.parse(insert.body), { entity_type: "gym", entity_id: "test-gym", field: "trial_price", proposed_value: { value: "$20", cents: 2000 }, note: "first class", contact_email: TEST_USER.email, submitted_by: TEST_USER.id, status: "pending" });
+  assert.match(insert.auth ?? "", /^Bearer eyJ/, "signed-in rows go through the user's token so 0004 accepts submitted_by");
+  calls.length = 0;
+  assert.equal(url(await route.POST(withCookie("sb-127-auth-token=base64-!!!"))).search, "?submitted=1&gym=test-gym");
+  insert = calls.find((c) => c.url.includes("/submissions"))!;
+  assert.deepEqual(JSON.parse(insert.body), { entity_type: "gym", entity_id: "test-gym", field: "trial_price", proposed_value: { value: "$20", cents: 2000 }, note: "first class", contact_email: null, status: "pending" }, "anonymous shape, no submitted_by");
+  assert.ok(!(insert.auth ?? "").startsWith("Bearer eyJ"), "anon key, not a user token");
   unconfigured();
 });

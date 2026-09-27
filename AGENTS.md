@@ -11,7 +11,7 @@ https://Codex.ai/code/artifact/4dcfe436-3410-4c99-8ea5-fa9f349c611b
 ## layout
 
 - `web/` — Next.js 16 app router (params are Promises; `PageProps<'/route'>` helper), Tailwind v4, `@supabase/supabase-js`. ISR 1h on all directory pages. Read `web/AGENTS.md` and `node_modules/next/dist/docs` before touching Next APIs.
-- `supabase/migrations/0001_init.sql` — schema + RLS + views. `0002_photos.sql` — `gym_photos` + `gym-photos` storage bucket, adds `photo_path` to `gym_cards`. `0003_gym_cards_v3.sql` — adds `trial_cents`, `class_count` to `gym_cards`. `0004_submissions_policy.sql` — pending-only, bounded insert policy on `submissions`. `0005_socials.sql` — `gym_socials`, one active profile link per platform. `supabase/seed.sql` — 6 fictional demo gyms flagged `is_sample`.
+- `supabase/migrations/0001_init.sql` — schema + RLS + views. `0002_photos.sql` — `gym_photos` + `gym-photos` storage bucket, adds `photo_path` to `gym_cards`. `0003_gym_cards_v3.sql` — adds `trial_cents`, `class_count` to `gym_cards`. `0004_submissions_policy.sql` — pending-only, bounded insert policy on `submissions`. `0005_claims.sql` — claims columns/policies/triggers, `new_gym` submissions, reviewer views. `0006_socials.sql` — `gym_socials`, one active profile link per platform. `supabase/seed.sql` — 6 fictional demo gyms flagged `is_sample`.
 - `scrapers/` — python 3.11. `seed_places.py` (Google Places → gyms), `extract_site.py` (crawl → Codex Haiku structured output → validated prices/classes), `fetch_photos.py` (site images → Haiku vision filter → storage; social profile links on the same pages → `gym_socials` via `common/socials.py`). Tests in `scrapers/tests`. See `scrapers/README.md`.
 
 ## how it runs

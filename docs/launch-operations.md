@@ -6,19 +6,43 @@ Canonical domain: **https://findfightgyms.com**. Product name: FightGyms.
 
 The launch slice does not depend on Jev. It provides safe SEO behavior and a public-source candidate queue/importer. Code checks are not proof of a live deployment or database connection.
 
-- Configure the Vercel project from repository `vnguyendc/fightgyms`, production branch `master`, root directory `web`, using Node 22.
-- Set `NEXT_PUBLIC_SITE_URL=https://findfightgyms.com`, `NEXT_PUBLIC_SUPABASE_URL`, and the **public anon** `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Never expose a service-role key to the browser.
+- Configure the Vercel project from repository `vnguyendc/fightgyms`, production branch `master`, **Root Directory `web`** (without it every git-triggered build fails with "Couldn't find any `pages` or `app` directory"; set 2026-09-27). Node is pinned by `engines.node` (24.x) in `web/package.json`, which overrides the project's Node setting; CI reads the same value.
+- Set `NEXT_PUBLIC_SITE_URL=https://www.findfightgyms.com` (production canonical host is www; apex 308s to it), `NEXT_PUBLIC_SUPABASE_URL`, and the **public anon** `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Never expose a service-role key to the browser.
 - Leave `SHOW_SAMPLE` unset/`0`. Verify the existing schema and public-read RLS with actual data before publishing.
 - Apply `supabase/migrations/0003_gym_cards_v3.sql` (`cd scrapers && .venv/bin/python run_sql.py ../supabase/migrations/0003_gym_cards_v3.sql`) before deploying a build that reads `trial_cents`/`class_count`. Older rows render as missing data, not errors. Rollback is re-running the view definition in `0002_photos.sql`; never drop data.
 - Apply `supabase/migrations/0004_submissions_policy.sql` before or with the first deploy that serves the correction form: it narrows the public insert policy on `submissions` to pending rows with allowed fields and bounded sizes. Rollback is re-creating the `with check (true)` policy from `0001_init.sql`.
+- Turn on **Web Analytics** and **Speed Insights** in the Vercel project (Analytics tab → Enable; Speed Insights tab → Enable). The code is already mounted; without the toggles the `/_vercel/insights` and `/_vercel/speed-insights` scripts 404 harmlessly and nothing is recorded. Page views, referrers, and Core Web Vitals per route appear there; the `correction_submitted` custom event appears under Analytics → Events once the first correction is filed.
+- Monitoring: server errors log as one JSON line with `"event":"request_error"` in Runtime Logs (Project → Logs, filter `request_error`, or Observability → Errors). Each carries the route, method, path, and an error `digest`; the public error page shows the same digest as `Reference …`, so a user's screenshot can be matched to the log line. Consider a Log Drain or a Vercel notification rule on error-rate before real traffic; none is configured by this repo.
 - Attach the purchased domain and verify HTTPS and the preferred apex/www redirect. No DNS or domain change is implied by this document.
 - Without a configured real backend, production intentionally shows an unavailable state, noindex, no fictional detail routes, and an empty sitemap. That state is **not an SEO launch**.
 
 See [web checks](../web/tests/README.md) for commands and environment behavior.
 
+## Deploy pipeline and checks
+
+```mermaid
+flowchart LR
+  pr[PR commit] --> webpr["web check<br/>test, typecheck, lint, build, smoke"]
+  pr --> preview["Vercel preview build<br/>(Vercel check)"]
+  webpr --> ruleset{"ruleset:<br/>both green?"}
+  preview --> ruleset
+  ruleset -- yes --> merge[merge to master]
+  merge --> prodbuild[Vercel production build]
+  merge --> webmaster[web check on the merge commit]
+  prodbuild --> hold{"Deployment Check:<br/>web green?"}
+  webmaster --> hold
+  hold -- yes --> live[www.findfightgyms.com]
+  hold -- "red or missing" --> stay[prod stays on the previous build]
+```
+
+- **PRs.** GitHub ruleset `master: deploy checks` requires `web` (workflow `Web quality gates`, from GitHub Actions) and `Vercel` (the preview build of `web/`). Repo admins can bypass explicitly (merge-box checkbox or `gh pr merge --admin`), which also covers direct pushes to master. Previews have no Supabase env and render the unavailable state: proof the app builds, not that data renders.
+- **master commits.** Vercel builds production right away; the Deployment Check `web` (Project → Settings → Build and Deployment → Deployment Checks) holds the production domains until the `web` run on that commit passes, for up to 30 minutes. A red or missing run leaves production on the previous build; Force Promote on the deployment page overrides it.
+- `web` runs on every PR and master commit (no path filter) because both gates wait for it. Renaming the job breaks both gates: update the ruleset and the Deployment Check in the same change.
+- **Manual.** Production ships from master. `vercel rollback` and `vercel promote <deployment-url>` switch production without a rebuild and still work from `web/`. `vercel deploy` from `web/` fails (it looks for `web/web`); if a CLI deploy is ever needed, run `vercel link` once at the repo root and deploy from there. Never `vercel --prod` from a feature branch: on 2026-09-26 a CLI deploy of an unmerged branch with uncommitted changes replaced production, and `/gyms/all` returned 404 while it was on master.
+
 ## Candidate pipeline
 
-Discovery uses public official gym websites, not copied Google Maps/Places ratings or reviews. Start with `scrapers/cities/dmv.txt` and the public Muay Thai/kickboxing scope. Do not invent prices, schedules, fighters, or credentials. The current importer writes only supported public identity/location/discipline metadata; it does not refresh existing gym fields or run the credential-dependent fact extractor.
+Discovery uses public official gym websites, not copied Google Maps/Places ratings or reviews. Scope is the region city lists in `scrapers/cities/*.txt` (DMV, NYC, NJ, PA) and the public Muay Thai/kickboxing disciplines; a city joins its region list by review before its candidates can ingest. Do not invent prices, schedules, fighters, or credentials. The current importer writes only supported public identity/location/discipline metadata; it does not refresh existing gym fields or run the credential-dependent fact extractor.
 
 ```bash
 # Repository root; use the project Python 3.12 environment.
@@ -38,14 +62,24 @@ Discovery uses public official gym websites, not copied Google Maps/Places ratin
   --queue /private/candidates.sqlite3 --apply --max-new 3
 ```
 
-Do not use `--apply` in unattended discovery until the real database contract has been checked on the intended FightGyms instance. The importer uses short table-locking transactions and requires appropriate Postgres permissions. Existing gyms are preserved; ambiguous matches are held for review rather than overwritten.
+Do not use `--apply` in unattended discovery until the real database contract has been checked on the intended FightGyms instance. The importer uses short table-locking transactions and requires appropriate Postgres permissions. Existing gyms are preserved; ambiguous matches are held for review rather than overwritten. That includes a second location of a brand on the same website: the first location imports, the rest wait for a person.
+
+After an apply, imported gyms still lack coordinates and site facts:
+
+```bash
+cd scrapers
+python geocode_census.py --dry-run && python geocode_census.py   # lat/lng where null; census geocoder, public domain
+python extract_site.py --gym-slug <slug>                          # per new gym: the importer's provenance row
+                                                                  # makes the default selection skip it for 30 days
+python fetch_photos.py --public-only --limit 200                  # never-attempted gyms, so new ones by default
+```
 
 ## Evidence contract
 
 The CLI help contains the exact JSONL schema. Every candidate must be a reviewed, official, public, single-location source with real fetch timestamps, redirect provenance, and verbatim supporting quotations.
 
 - Each quote must exist in the captured source text and retain the complete assertion context. Never crop away a negation or contrary qualification.
-- Location evidence currently requires address, city, state abbreviation, and explicit US/USA/United States in one quote. Official location-specific JSON-LD can provide this evidence. Missing evidence means skip/review, not invent or rewrite a quote.
+- Location evidence requires street address, city and state (two-letter code or printed state name) in one quote, which may wrap over up to three lines of one address block. The country is US by scope and need not be printed; most gym sites print "518 5th Ave, Brooklyn, NY 11215". Official location-specific JSON-LD can provide this evidence. Missing evidence means skip/review, not invent or rewrite a quote.
 - Do not include Google reviews, personal testimonials, secret values, private pages, or unrelated source material.
 - Excerpts are acceptable only after inspecting the source context; keep the raw capture private for audit. Store no raw corpus in Git.
 - Synthetic fixtures remain marked synthetic and cannot publish.
@@ -66,12 +100,30 @@ A schedule is active only when its exact job record has been created and verifie
 
 There is no guarantee of rankings or traffic merely from deploying a sitemap. No Search Console submission, ranking, or traffic result is claimed here.
 
+## Gym claims
+
+Owners sign in by magic link, claim a listing, and submit missing gyms. Every row they create is `pending`; only the reviewer changes status. Gates before this works for anyone outside the Supabase project team:
+
+1. **Custom SMTP.** The built-in sender delivers 2 messages per hour and refuses addresses outside the project team. Configure a provider (Resend, Postmark or SES) with a findfightgyms.com sender and its DNS records under Authentication → SMTP settings. The default limit then becomes 30 emails per hour; raise it under Rate Limits if claims outpace it.
+2. **Email provider and templates.** Authentication → Providers → Email enabled. Set both the "Magic link or OTP" and "Confirm sign up" templates to link to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next={{ .RedirectTo }}`. Site URL `https://findfightgyms.com`.
+3. **Redirect allow-list** (URL Configuration): `https://findfightgyms.com/claim*` (matches `?gym=<slug>`, not `/claim/x`) and `http://localhost:3000/**` for development. Auth emails always link to production, so previews never exercise the flow.
+4. **Migration 0005.** First confirm `select count(*) from submissions where entity_id is null` is 0 (the shape constraint needs it), then `cd scrapers && .venv/bin/python run_sql.py ../supabase/migrations/0005_claims.sql`. It rewrites the 0004 insert policy with `new_gym` added, hardens `claims` (users insert pending rows for themselves only; status is reviewer-only) and adds `claim_review` / `submission_review` for the SQL editor. If the Data API reports an unknown column afterwards, run `notify pgrst, 'reload schema'`. Rollback is reverting the app; keep the policies.
+
+Review, as postgres in the SQL editor:
+
+- Claim: `select * from claim_review where status = 'pending'`; `domain_match` is true when the sign-in email's domain equals the gym's website host. `update claims set status = 'verified' where id = '<id>'` (or `'rejected'`). The trigger flips `gyms.claimed`; cards and profiles follow within the hour.
+- New gym: `select * from submission_review where field = 'new_gym' and status = 'pending'`. Create the gym through the normal path with a `sources` row `kind = 'user_submit'` whose `raw` is the submission's `proposed_value`, then `update submissions set status = 'approved' where id = '<id>'`. When the role was owner, manager or coach, `insert into claims (entity_type, entity_id, user_id, status, role, contact_email) values ('gym', '<gym id>', '<submitted_by>', 'verified', '<role>', '<contact_email>')`.
+- Corrections: rows with `from_verified_claimant = true` in `submission_review` are entered with `verified_by = 'gym_claim'`; the rest as before.
+- From 2026-10-30 new tables in `public` are not exposed to the Data API by default; grant explicitly when one is added. 0005 adds none.
+- `claim_submitted` and `gym_submitted` appear under Analytics → Events beside `correction_submitted`.
+
 ## Verification and rollback
 
 - Python: `.venv/bin/python -m unittest discover -s scrapers/tests -v`.
 - Web: `cd web && npm test && npm run typecheck && npm run lint && npm run build && npm run test:smoke` (smoke expects an unconfigured production build; do not use it as live-data proof).
 - Corrections: `POST /api/submissions` writes `status='pending'` rows only. Review them in `submissions` and set `status` to `approved` or `rejected` by hand; approved values are entered through the normal scraper/manual paths with a `source_id`, never copied blindly.
 - A real public Kaizen MMA Fairfax source was captured and accepted into the local queue, then dry-run successfully with zero database inserts. This is candidate-path verification, not confirmation the gym is absent from the existing database or published on the site.
+- 2026-09-27, first production import (NYC, NJ, PA, DMV; run `northeast-2026-09` via `.claude/skills/fetch-gyms`). 593 sites were checked, 199 candidates validated after 10 reviewer holds, and 186 were inserted in 38 committed transactions. 13 went to review as `ambiguous_location`: a brand's second location on the same website, or the same name in the same city. The census geocoder located 173. Sampled gym and city pages returned 200 with indexable metadata. The apply path had first been exercised against a PGlite copy of the schema loaded with the live gyms.
 - Stop a discovery schedule through Hermes cron controls. Keep queued evidence for audit; do not delete published rows as a rollback shortcut.
 
 References: [Google scaled-content policy](https://developers.google.com/search/docs/essentials/spam-policies), [Places API policies](https://developers.google.com/maps/documentation/places/web-service/policies).

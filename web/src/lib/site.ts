@@ -1,4 +1,5 @@
 import type { Metadata, MetadataRoute } from "next";
+import { allGymsPath, pageCount } from "./listing";
 import { LIVE_STYLES, STYLE_SLUG, type GymCard, type Place, type Style } from "./types";
 
 const DEFAULT_ORIGIN = "https://findfightgyms.com";
@@ -44,6 +45,17 @@ export function cityPath(place: Pick<Place, "state" | "slug">, style?: Style): s
   return style ? `${base}/${STYLE_SLUG[style]}` : base;
 }
 
+/** A discipline page earns its own URL only when it lists a strict, non-empty subset of the city page; otherwise it duplicates it. */
+export function distinctStyleListing(local: Pick<GymCard, "styles">[], style: Style): boolean {
+  const matching = local.filter(g => g.styles.includes(style)).length;
+  return matching > 0 && matching < local.length;
+}
+
+/** Live disciplines that deserve their own page for this city listing. */
+export function distinctStyles(local: Pick<GymCard, "styles">[]): Style[] {
+  return LIVE_STYLES.filter(style => distinctStyleListing(local, style));
+}
+
 export function directorySitemap(places: Place[], gyms: GymCard[], indexable: boolean, hasEvents: boolean): MetadataRoute.Sitemap {
   if (!indexable) return [];
   const publicGyms = gyms.filter((g) => g.is_sample === false && !g.slug.startsWith("sample-") && g.styles.some(s => LIVE_STYLES.includes(s)));
@@ -51,12 +63,13 @@ export function directorySitemap(places: Place[], gyms: GymCard[], indexable: bo
   const paths = new Set<string>();
   if (publicGyms.length) paths.add("");
   if (populatedPlaces.length) paths.add("/gyms");
+  if (publicGyms.length) for (let page = 1; page <= pageCount(publicGyms.length); page++) paths.add(allGymsPath(page));
   for (const place of populatedPlaces) {
     const local = publicGyms.filter(g => g.place_slug === place.slug);
     if (!local.length) continue;
     paths.add(cityPath(place));
     for (const style of LIVE_STYLES) {
-      if (local.some(g => g.styles.includes(style))) paths.add(cityPath(place, style));
+      if (distinctStyleListing(local, style)) paths.add(cityPath(place, style));
     }
   }
   for (const gym of publicGyms) paths.add(`/gym/${gym.slug}`);
@@ -79,6 +92,20 @@ export function pageMetadata(path: string, title: string, description: string, h
   return { title, description, alternates: { canonical: url },
     openGraph: { title, description, url, siteName: SITE.name, type: "website" },
     robots: { index, follow: index } };
+}
+
+/** Next already adds `noindex` to not-found pages; emitting an explicit index directive as well leaves two conflicting tags. */
+export function layoutRobots(policy: RuntimePolicy): Metadata["robots"] {
+  return policy.indexable ? undefined : { index: false, follow: false };
+}
+
+/** BreadcrumbList for a site-relative trail; the last item is the current page. */
+export function breadcrumbJsonLd(trail: { name: string; path: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: trail.map((t, i) => ({ "@type": "ListItem", position: i + 1, name: t.name, item: `${SITE.url}${t.path}` })),
+  };
 }
 
 export const SITE = {

@@ -5,7 +5,7 @@ real prices, real schedules, and which gyms actually produce fighters.
 
 ```
 web/        next.js 16 app router, tailwind v4, supabase-js. ISR pages for pSEO.
-supabase/   migrations/ (0001 schema, RLS, views; 0002 photos + storage bucket; 0003 gym_cards v3; 0004 submissions policy; 0005 social links) + seed.sql (fictional demo gyms)
+supabase/   migrations/ (0001 schema, RLS, views; 0002 photos + storage bucket; 0003 gym_cards v3; 0004 submissions policy; 0005 claims; 0006 social links) + seed.sql (fictional demo gyms)
 scrapers/   python: google places seed, LLM site extraction, website photos + social links. see scrapers/README.md
 ```
 
@@ -21,7 +21,7 @@ See [launch and discovery operations](docs/launch-operations.md) for the domain,
 
 ## wire supabase
 
-1. create a project, run `supabase/migrations/*.sql` in order — no psql needed: `cd scrapers && python run_sql.py ../supabase/migrations/0001_init.sql` (then `0002_photos.sql` through `0005_socials.sql`, in order)
+1. create a project, run `supabase/migrations/*.sql` in order — no psql needed: `cd scrapers && python run_sql.py ../supabase/migrations/0001_init.sql` (then `0002_photos.sql` through `0006_socials.sql`, in order)
 2. optionally `supabase/seed.sql` for the demo rows (they're flagged `is_sample` and hidden in prod)
 3. configure `NEXT_PUBLIC_SITE_URL=https://findfightgyms.com`, `NEXT_PUBLIC_SUPABASE_URL`, and the public `NEXT_PUBLIC_SUPABASE_ANON_KEY` in Vercel or a gitignored `web/.env.local`; never expose a service-role key
 4. `scrapers/.env` needs `DATABASE_URL` (use the **session pooler**, the direct host is IPv6-only), `GOOGLE_PLACES_KEY`, `ANTHROPIC_API_KEY` — see `scrapers/README.md`
