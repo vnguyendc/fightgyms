@@ -158,6 +158,136 @@ class Validation(unittest.TestCase):
         self.assertNotIn("text", result["fields"])
 
 
+def relocated(address, city, state, zip_code):
+    """The synthetic fixture moved to another listed city, quotes rewritten to match."""
+    record = candidate()
+    old = "123 Example Avenue, Arlington, VA 22201"
+    new = f"{address}, {city}, {state} {zip_code}"
+    record.update(address=address, city=city, state=state)
+    record["pages"][0]["text"] = record["pages"][0]["text"].replace(old, new)
+    record["evidence"]["location"]["quote"] = record["evidence"]["location"]["quote"].replace(old, new)
+    return record
+
+
+class RegionScope(unittest.TestCase):
+    def test_every_region_city_file_is_in_scope_and_cities_stay_paired_with_their_state(self):
+        from scrapers import public_candidates as pipeline
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "dmv.txt").write_text("# launch metro\nArlington, VA\n")
+            Path(tmp, "nyc.txt").write_text("# new york city\nBrooklyn, NY\n")
+            with patch.object(pipeline, "CITIES", Path(tmp)):
+                self.assertEqual(pipeline.validate(candidate(), now=NOW)["fields"]["city"], "Arlington")
+                brooklyn = pipeline.validate(relocated("123 Example Avenue", "Brooklyn", "NY", "11201"), now=NOW)
+                self.assertEqual((brooklyn["fields"]["city"], brooklyn["fields"]["state"]), ("Brooklyn", "NY"))
+                for city, state in (("Brooklyn", "VA"), ("Arlington", "NY"), ("Queens", "NY")):
+                    with self.subTest(city=city, state=state):
+                        with self.assertRaises(pipeline.Rejected) as error:
+                            pipeline.validate(relocated("123 Example Avenue", city, state, "11201"), now=NOW)
+                        self.assertEqual(str(error.exception), "out_of_scope")
+
+    def test_queens_hyphenated_house_numbers_are_street_addresses(self):
+        from scrapers import public_candidates as pipeline
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "nyc.txt").write_text("Astoria, NY\n")
+            with patch.object(pipeline, "CITIES", Path(tmp)):
+                result = pipeline.validate(relocated("37-18 Example Street", "Astoria", "NY", "11103"), now=NOW)
+                self.assertEqual(result["fields"]["address"], "37-18 Example Street")
+                for address in ("Suite 5 Example Street", "-18 Example Street", "PO Box 12"):
+                    with self.subTest(address=address):
+                        with self.assertRaises(pipeline.Rejected) as error:
+                            pipeline.validate(relocated(address, "Astoria", "NY", "11103"), now=NOW)
+                        self.assertEqual(str(error.exception), "invalid_address")
+
+    def test_country_is_assumed_us_and_an_address_block_may_wrap(self):
+        from scrapers import public_candidates as pipeline
+        for quote in ("123 Example Avenue, Arlington, VA 22201",
+                      "123 Example Avenue, Arlington, VA",
+                      "123 Example Avenue\nArlington, VA 22201",
+                      "123 Example Avenue\nArlington, VA 22201\nUSA"):
+            with self.subTest(quote=quote):
+                record = candidate()
+                record["pages"][0]["text"] += " " + quote + "."
+                record["evidence"]["location"]["quote"] = quote
+                self.assertEqual(pipeline.validate(record, now=NOW)["fields"]["country"], "US")
+
+    def test_spelled_out_state_names_support_the_two_letter_state(self):
+        from scrapers import public_candidates as pipeline
+        for quote in ("123 Example Avenue, Arlington, Virginia 22201",
+                      "123 Example Avenue\nArlington, Virginia, 22201"):
+            with self.subTest(quote=quote):
+                record = candidate()
+                record["pages"][0]["text"] += " " + quote + "."
+                record["evidence"]["location"]["quote"] = quote
+                self.assertEqual(pipeline.validate(record, now=NOW)["fields"]["state"], "VA")
+        for quote in ("123 Example Avenue, Arlington, West Virginia 22201",
+                      "123 Example Avenue, Arlington, Maryland 22201"):
+            with self.subTest(quote=quote):
+                record = candidate()
+                record["pages"][0]["text"] += " " + quote + "."
+                record["evidence"]["location"]["quote"] = quote
+                with self.assertRaises(pipeline.Rejected) as error:
+                    pipeline.validate(record, now=NOW)
+                self.assertEqual(str(error.exception), "unsupported_value")
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "dmv.txt").write_text("Washington, DC\n")
+            with patch.object(pipeline, "CITIES", Path(tmp)):
+                for printed in ("D.C.", "District of Columbia", "DC"):
+                    with self.subTest(printed=printed):
+                        record = relocated("123 Example Avenue", "Washington", "DC", "20001")
+                        quote = f"123 Example Avenue, Washington, {printed} 20001"
+                        record["pages"][0]["text"] += " " + quote + "."
+                        record["evidence"]["location"]["quote"] = quote
+                        self.assertEqual(pipeline.validate(record, now=NOW)["fields"]["state"], "DC")
+
+    def test_location_without_street_city_or_state_and_long_blocks_are_rejected(self):
+        from scrapers import public_candidates as pipeline
+        for quote, code in (("123 Example Avenue, Arlington", "unsupported_value"),
+                            ("Arlington, VA 22201", "unsupported_value"),
+                            ("123 Example Avenue, VA 22201", "unsupported_value"),
+                            ("123 Example Avenue\nSuite 5\nArlington\nVA 22201", "invalid_shape")):
+            with self.subTest(quote=quote):
+                record = candidate()
+                record["pages"][0]["text"] += " " + quote + "."
+                record["evidence"]["location"]["quote"] = quote
+                with self.assertRaises(pipeline.Rejected) as error:
+                    pipeline.validate(record, now=NOW)
+                self.assertEqual(str(error.exception), code)
+        record = candidate()
+        record["pages"][0]["text"] += " Synthetic Potomac Striking Gym\nwelcomes you."
+        record["evidence"]["name"]["quote"] = "Synthetic Potomac Striking Gym\nwelcomes you."
+        with self.assertRaises(pipeline.Rejected) as error:
+            pipeline.validate(record, now=NOW)
+        self.assertEqual(str(error.exception), "invalid_shape")
+
+    def test_compact_json_ld_is_not_a_url_credential_but_real_userinfo_is(self):
+        from scrapers import public_candidates as pipeline
+        jsonld = ('{"@context":"https://schema.org","@type":"ExerciseGym","url":"https://synthetic-potomac.example",'
+                  '"email":"hello@synthetic-potomac.example","address":{"@type":"PostalAddress",'
+                  '"streetAddress":"123 Example Avenue","addressLocality":"Arlington","addressRegion":"VA",'
+                  '"postalCode":"22201","addressCountry":"US"}}')
+        record = candidate()
+        record["pages"][0]["text"] += "\n" + jsonld
+        record["evidence"]["location"]["quote"] = jsonld[jsonld.index('{"@type":"PostalAddress"'):-1]
+        self.assertEqual(pipeline.validate(record, now=NOW)["fields"]["address"], "123 Example Avenue")
+        for leak in ("https://user:secret@synthetic-potomac.example/", "http://admin@10.0.0.1/"):
+            with self.subTest(leak=leak):
+                record = candidate()
+                record["pages"][0]["text"] += " " + leak
+                with self.assertRaises(pipeline.Rejected) as error:
+                    pipeline.validate(record, now=NOW)
+                self.assertEqual(str(error.exception), "sensitive_input")
+
+    def test_region_city_files_list_one_city_comma_state_per_line(self):
+        from scrapers import public_candidates as pipeline
+        files = sorted(pipeline.CITIES.glob("*.txt"))
+        self.assertIn("dmv.txt", [f.name for f in files])
+        for f in files:
+            for line in f.read_text().splitlines():
+                if line and not line.startswith("#"):
+                    with self.subTest(file=f.name, line=line):
+                        self.assertRegex(line, r"^[A-Z][^,#]*[a-z.], [A-Z]{2}$")
+
+
 def invoke(*args):
     from scrapers import public_candidates as pipeline
     output = StringIO()
