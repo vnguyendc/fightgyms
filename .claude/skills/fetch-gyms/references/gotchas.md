@@ -68,6 +68,19 @@
   geocoder does not touch them by design.
 - `extract_site.py` must be run per `--gym-slug` for imported gyms: its default selection skips gyms
   whose website has a `website` source newer than 30 days, and the importer's provenance row is one.
+- Phones: 144 of 186 imported gyms print exactly one number; the rest print several (multi-location
+  footers, sister gyms, a coach's cell, stale pages). Whether a site puts the phone before or after the
+  address varies, so "nearest after the address" wrote a neighbour's number in tests; only a single
+  distinct number within reach of the gym's own street address, across all its pages, is safe. One site's
+  contact block printed a template number "(703) 646-1234" beside the real one: placeholders are skipped.
+  154 of 186 got a phone in this run.
+- Socials come from `fetch_photos.py --socials-only` (common/socials.py). Until that code is on master, run
+  `enrich.py socials --scrapers <socials checkout>/scrapers`. Review shared handles across gyms, personal
+  profiles and franchise accounts afterwards (earlier batches linked a founder's personal account). This run:
+  162 of 186 gyms got 387 links. No handle was shared across gyms. One YouTube link was an unrelated
+  personal channel from a location page (deactivated; that lasts only until the 30-day re-crawl, so a durable
+  fix is a `credit='manual'` row). Facebook `profile.php?id=` URLs are usually pages without a vanity
+  name, not personal profiles.
 - Street-only addresses (JSON-LD evidence) show a city only once the web `fullAddress()` helper is
   deployed; deploys go through the Vercel CLI from web/.
 - New gym and city routes render on demand; the home page, /gyms/all and the sitemap refresh within
