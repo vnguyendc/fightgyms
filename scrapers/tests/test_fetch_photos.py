@@ -118,6 +118,14 @@ class Socials(unittest.TestCase):
             ("instagram", "siamstrike", 2, BASE), ("instagram", "kru_somchai", 1, BASE + "gallery"), ("facebook", "SiamStrikeMT", 1, BASE)])
         self.assertEqual([c["url"] for c in cands], [BASE + "img/ring.jpg"])
 
+    def test_a_website_that_is_itself_a_profile_is_the_link_and_is_never_crawled(self):
+        # some gyms list their instagram as their website; instagram.com serves a login page whose links are not the gym's
+        with mock.patch.object(fetch_photos, "fetch_html", side_effect=AssertionError("crawled a social host")):
+            cands, pages, ranked = fetch_photos.collect_site("http://instagram.com/round15boxinggym")
+        self.assertEqual((cands, pages), ([], []))
+        self.assertEqual([(r["platform"], r["url"], r["count"], r["source_url"]) for r in ranked],
+                         [("instagram", "https://www.instagram.com/round15boxinggym", 2, "http://instagram.com/round15boxinggym")])
+
     def test_socials_only_pass_never_downloads_or_calls_the_model(self):
         home = '<a href="https://www.instagram.com/siamstrike/">ig</a><img src="/img/ring.jpg">'
         with mock.patch.object(fetch_photos, "fetch_html", lambda client, url: home if url == BASE else None), \

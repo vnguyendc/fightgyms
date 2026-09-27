@@ -2,7 +2,7 @@
 
 parse(url)              -> {"platform", "url", "handle"} for a profile / page / channel url, else None.
 harvest(html, base_url) -> every profile a page links to, from <a href> and JSON-LD sameAs, with a weight.
-rank(found, website, name) -> one entry per profile with a count, best first per platform.
+rank(found, website, name, city) -> one entry per profile with a count, best first per platform.
 pick(ranked)            -> the best profile per platform.
 Posts, videos, share buttons, feature pages and the accounts of the platforms, site builders
 and feed widgets themselves are all None: linking a gym to someone else's profile is worse than
@@ -49,6 +49,7 @@ _HANDLE = {
     "x": re.compile(r"^[A-Za-z0-9_]{1,15}$"),
 }
 _CHANNEL_ID = re.compile(r"^UC[\w-]{22}$")
+_DOMAIN_LIKE = re.compile(r"\.(com|net|org|co|us|io|info|biz)$", re.I)  # "instagram.com/example.com": a broken link, not a handle
 # the platforms themselves, site builders and feed widgets: their accounts are linked from thousands of gym sites
 _VENDORS = frozenset("""instagram facebook meta tiktok youtube twitter x google wix wixcom squarespace godaddy wordpress
 wordpressdotcom weebly shopify webflow duda jimdo site123 strikingly mindbody mindbodyonline zenplanner glofox pushpress
@@ -62,7 +63,8 @@ def _norm(handle: str) -> str:
 
 def _account(platform: str, name: str, url: str) -> dict | None:
     """A named account on `platform`, unless the name is a feature path, malformed, or a vendor."""
-    if name in _RESERVED.get(platform, ()) or name.endswith(".php") or not _HANDLE[platform].match(name) or _norm(name) in _VENDORS:
+    if (name in _RESERVED.get(platform, ()) or name.endswith(".php") or _DOMAIN_LIKE.search(name)
+            or not _HANDLE[platform].match(name) or _norm(name) in _VENDORS):
         return None
     return {"platform": platform, "url": url, "handle": name}
 
@@ -194,20 +196,25 @@ def _similar(handle: str | None, label: str, name: str = "") -> bool:
     return any(len(os.path.commonprefix([h, x])) >= 6 for x in (lab, nm) if x)
 
 
-def rank(found: list[dict], website: str, name: str = "") -> list[dict]:
+def rank(found: list[dict], website: str, name: str = "", city: str = "") -> list[dict]:
     """One entry per profile with count = sum of weights, best first within each platform: a handle that
-    resembles the site's own domain or the gym's name, then the most linked, then first seen. A coach's
-    personal account is usually linked once from a bio; the gym's is in the header, the footer and its sameAs."""
+    resembles the site's own domain or the gym's name and also names the gym's city (a location's own account
+    on a multi-location brand's site), then one that merely resembles them, then the most linked, then first
+    seen. A coach's personal account is usually linked once from a bio; the gym's is in the header, the footer
+    and its sameAs."""
     label = _label(website)
+    city_norm = re.sub(r"[^a-z0-9]", "", city.lower())
     agg: dict[tuple[str, str], dict] = {}
     for f in found:
         key = (f["platform"], f["url"].lower())  # handles are case-insensitive on every platform here
         if key not in agg:
+            similar = _similar(f["handle"], label, name)
+            local = bool(city_norm) and len(city_norm) >= 3 and city_norm in _norm(f["handle"] or "")
             agg[key] = {"platform": f["platform"], "url": f["url"], "handle": f["handle"], "source_url": f["source_url"],
-                        "count": 0, "similar": _similar(f["handle"], label, name)}
+                        "count": 0, "similar": similar, "local": similar and local}
         agg[key]["count"] += f.get("weight", 1)
     # stable sort keeps first-seen order among ties
-    return sorted(agg.values(), key=lambda r: (PLATFORMS.index(r["platform"]), not r["similar"], -r["count"]))
+    return sorted(agg.values(), key=lambda r: (PLATFORMS.index(r["platform"]), not r["local"], not r["similar"], -r["count"]))
 
 
 def pick(ranked: list[dict]) -> list[dict]:

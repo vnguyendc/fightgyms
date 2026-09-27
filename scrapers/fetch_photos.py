@@ -258,8 +258,11 @@ def classify(client: anthropic.Anthropic, webp: bytes) -> dict:
 # per-site pipeline
 # ---------------------------------------------------------------------------
 
-def collect_site(website: str, gym_name: str = "") -> tuple[list[dict], list[str], list[dict]]:
+def collect_site(website: str, gym_name: str = "", gym_city: str = "") -> tuple[list[dict], list[str], list[dict]]:
     """Return (photo candidates, pages fetched, ranked social profiles)."""
+    own = socials.parse(website)
+    if own:  # the "website" is a profile page: that is the link, and a social host serves nothing worth crawling
+        return [], [], socials.rank([{**own, "source_url": website, "weight": 2}], website, gym_name, gym_city)
     pages: list[str] = []
     cands: list[dict] = []
     found: list[dict] = []
@@ -278,14 +281,14 @@ def collect_site(website: str, gym_name: str = "") -> tuple[list[dict], list[str
                 seen = {c["url"] for c in cands}
                 cands.extend(c for c in extract_candidates(ghtml, gallery) if c["url"] not in seen)
                 found.extend(socials.harvest(ghtml, gallery))
-    return cands[:MAX_DOWNLOADS], pages, socials.rank(found, website, gym_name)
+    return cands[:MAX_DOWNLOADS], pages, socials.rank(found, website, gym_name, gym_city)
 
 
-def process_site(website: str, gym_name: str = "", *, want_photos: bool = True) -> tuple[list[dict], list[dict], list[str], list[dict]]:
+def process_site(website: str, gym_name: str = "", gym_city: str = "", *, want_photos: bool = True) -> tuple[list[dict], list[dict], list[str], list[dict]]:
     """Download, filter, classify. Returns (kept, all_verdicts, pages, ranked socials).
     kept items carry webp bytes under 'data'; verdicts are json-safe. want_photos=False stops after the html:
     no downloads, no model client, so it needs neither ANTHROPIC_API_KEY nor storage."""
-    cands, pages, ranked = collect_site(website, gym_name)
+    cands, pages, ranked = collect_site(website, gym_name, gym_city)
     if not want_photos:
         return [], [], pages, ranked
     llm = anthropic.Anthropic()
@@ -364,15 +367,15 @@ def select_gyms(cur, *, refresh: bool, public_only: bool, socials_only: bool, li
     needs_socials: no active links and no socials attempt in 30 days. Attempts are the sources rows write_site adds."""
     cur.execute(
         """
-        select id, slug, name, website, needs_photos from (
-          select g.id, g.slug, g.name, g.website, g.created_at, g.styles && %(live)s::text[] as is_public,
+        select id, slug, name, website, city, needs_photos from (
+          select g.id, g.slug, g.name, g.website, p.city, g.created_at, g.styles && %(live)s::text[] as is_public,
             (%(refresh)s or not exists (select 1 from gym_photos p where p.gym_id = g.id and p.is_active))
               and not exists (select 1 from sources s where s.kind = 'website' and s.url = g.website
                               and s.raw ? 'candidates' and s.fetched_at > now() - interval '30 days') as needs_photos,
             not exists (select 1 from gym_socials l where l.gym_id = g.id and l.is_active)
               and not exists (select 1 from sources s where s.kind = 'website' and s.url = g.website
                               and s.raw ? 'socials' and s.fetched_at > now() - interval '30 days') as needs_socials
-          from gyms g
+          from gyms g left join places p on p.id = g.place_id
           where g.website is not null and g.is_active and not g.is_sample
         ) g
         where (%(all)s or is_public) and ((needs_photos and not %(socials_only)s) or needs_socials)
@@ -397,11 +400,11 @@ def main() -> None:
     dry = args.dry_run or bool(args.url)
 
     if args.url:
-        gyms = [{"id": None, "slug": urlparse(args.url).netloc, "website": args.url, "name": "", "needs_photos": True}]
+        gyms = [{"id": None, "slug": urlparse(args.url).netloc, "website": args.url, "name": "", "city": "", "needs_photos": True}]
     else:
         with conn() as c, c.cursor() as cur:
             if args.gym_slug:
-                cur.execute("select id, slug, name, website, true as needs_photos from gyms where slug = %s", (args.gym_slug,))
+                cur.execute("select g.id, g.slug, g.name, g.website, p.city, true as needs_photos from gyms g left join places p on p.id = g.place_id where g.slug = %s", (args.gym_slug,))
                 gyms = cur.fetchall()
             else:
                 gyms = select_gyms(cur, refresh=args.refresh, public_only=args.public_only, socials_only=args.socials_only, limit=args.limit)
@@ -415,7 +418,7 @@ def main() -> None:
         want_photos = not args.socials_only and g["needs_photos"]
         print(g["slug"], file=sys.stderr)
         try:
-            kept, verdicts, pages, ranked = process_site(g["website"], g["name"], want_photos=want_photos)
+            kept, verdicts, pages, ranked = process_site(g["website"], g["name"], g.get("city") or "", want_photos=want_photos)
             if dry:
                 print(json.dumps({"pages": pages, "kept": [k["url"] for k in kept], "candidates": verdicts,
                                   "socials": socials.pick(ranked), "social_candidates": ranked}, indent=2))

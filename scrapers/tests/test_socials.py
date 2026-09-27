@@ -77,6 +77,11 @@ class Parse(unittest.TestCase):
                   "https://www.facebook.com/facebook", "https://www.instagram.com/instagram/", "https://www.tiktok.com/@tiktok"]:
             self.assertIsNone(parse(u), u)
 
+    def test_domain_like_handles_are_broken_links(self):
+        self.assertIsNone(parse("https://www.instagram.com/squarefitproagram.com"))
+        self.assertIsNone(parse("https://www.facebook.com/example.org/"))
+        self.assertEqual(parse("https://www.instagram.com/siam.strike")["handle"], "siam.strike")
+
     def test_everything_else_is_none(self):
         for u in ["https://example-gym.com/instagram", "https://www.linkedin.com/company/siamstrike", "mailto:hi@example-gym.com",
                   "tel:+17035550101", "not a url", "", "https://instagram.com.evil.example/siamstrike", "javascript:void(0)"]:
@@ -159,6 +164,18 @@ class RankAndPick(unittest.TestCase):
         ranked = rank(found, "https://www.onelifefitness.com/boxing", name="Strike Studio Alexandria")
         self.assertEqual([(r["handle"], r["count"], r["similar"]) for r in ranked], [("strikestudio_va", 3, True), ("onelifefit", 2, True)])
         self.assertFalse(rank([_hit("instagram", "kru_somchai")], "https://www.siamstrike.com/", name="Siam Strike Muay Thai")[0]["similar"])
+
+    def test_a_handle_naming_the_gyms_city_beats_the_brand_account(self):
+        # multi-location brands link the brand account everywhere; a location page also links its own
+        found = [_hit("instagram", "capitalmmafit"), _hit("instagram", "capitalmmafit"), _hit("instagram", "capitalmma_herndon")]
+        ranked = rank(found, "https://capitalmma.com/herndon", name="Capital MMA & Elite Fitness Herndon", city="Herndon")
+        self.assertEqual([(r["handle"], r["local"]) for r in ranked], [("capitalmma_herndon", True), ("capitalmmafit", False)])
+        # the city alone is not enough: an unrelated account that mentions the city stays behind
+        found = [_hit("instagram", "herndon_police"), _hit("instagram", "capitalmmafit")]
+        self.assertEqual(rank(found, "https://capitalmma.com/", name="Capital MMA Herndon", city="Herndon")[0]["handle"], "capitalmmafit")
+        # without a city the brand account keeps winning on count
+        found = [_hit("instagram", "capitalmmafit"), _hit("instagram", "capitalmmafit"), _hit("instagram", "capitalmma_herndon")]
+        self.assertEqual(rank(found, "https://capitalmma.com/", name="Capital MMA")[0]["handle"], "capitalmmafit")
 
     def test_case_variants_of_a_handle_are_one_profile(self):
         ranked = rank([_hit("instagram", "SiamStrike"), _hit("instagram", "siamstrike"), _hit("instagram", "other")], "https://www.example-gym.com/")
