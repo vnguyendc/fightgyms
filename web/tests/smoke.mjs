@@ -16,7 +16,7 @@ async function request(path) {
   const response = await fetch(`http://127.0.0.1:${port}${path}`, {
     headers: { "user-agent": "Googlebot" }, signal: AbortSignal.timeout(15000),
   });
-  return { status: response.status, html: await response.text() };
+  return { status: response.status, html: await response.text(), headers: response.headers };
 }
 try {
   await new Promise((resolve, reject) => {
@@ -48,7 +48,14 @@ try {
     assert.doesNotMatch(html, /Directory temporarily unavailable/);
     console.log(`PASS ${status} ${path}: static page renders without a backend`);
   }
-  const homeHtml = (await request("/")).html;
+  const home = await request("/");
+  const homeHtml = home.html;
+  assert.equal(home.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(home.headers.get("x-frame-options"), "DENY");
+  assert.equal(home.headers.get("referrer-policy"), "strict-origin-when-cross-origin");
+  assert.ok(home.headers.get("permissions-policy"), "permissions-policy header");
+  assert.equal(home.headers.get("x-powered-by"), null, "framework header removed");
+  console.log("PASS /: security headers, no x-powered-by");
   assert.match(homeHtml, /href="\/about"/);
   assert.match(homeHtml, /href="\/privacy"/);
   assert.match(homeHtml, /"@type":"WebSite"/);
@@ -57,8 +64,9 @@ try {
   console.log("PASS /: footer links about + privacy; site JSON-LD present");
   const missing = await request("/no-such-page");
   assert.equal(missing.status, 404);
-  assert.equal((missing.html.match(/<meta name="robots"/g) ?? []).length, 1, "one robots directive on 404 pages");
-  console.log("PASS 404: single robots directive");
+  const directives = [...missing.html.matchAll(/<meta name="robots" content="([^"]*)"/g)].map((m) => m[1]);
+  assert.ok(directives.length >= 1 && directives.every((d) => d.startsWith("noindex")), `404 pages must never carry an index directive: ${directives}`);
+  console.log("PASS 404: robots directives all noindex");
   for (const path of ["/gym/sample-siam-strike-arlington-va", "/gyms/va/arlington", "/gyms/va/arlington/muay-thai", "/gyms/all/page/2"]) {
     const { status, html } = await request(path);
     assert.equal(status, 404, path);
