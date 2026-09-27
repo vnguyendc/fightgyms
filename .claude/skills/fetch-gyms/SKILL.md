@@ -86,9 +86,16 @@ ingest into a fresh `queue.sqlite3`.
 ```bash
 $PY $S/enrich.py --run R geocode --dry-run && $PY $S/enrich.py --run R geocode
 $PY $S/enrich.py --run R extract --workers 4   # prices, schedules, coaches (Haiku); per --gym-slug
-$PY $S/enrich.py --run R photos                # own-site photos only, vision-filtered
+$PY $S/enrich.py --run R photos                # own-site photos only, vision-filtered, 4 gyms at a time
+$PY $S/enrich.py --run R phones --dry-run && $PY $S/enrich.py --run R phones   # from the captured pages
+$PY $S/enrich.py --run R socials [--scrapers <checkout>/scrapers]           # fetch_photos --socials-only per gym
 $PY $S/verify_live.py --run R --sample 6
 ```
+
+The importer stores no phone. `phones` takes the number printed on the gym's own captured pages, but only
+when there is one distinct number, or one number beside the gym's street address across all its pages. It
+skips toll-free, fax and placeholder numbers, fills only empty phones, and writes a provenance row (page, printed
+text, text hash). Read `final/phones.tsv` from the dry run before writing.
 
 Report per region: imported, held (with reasons), in review, coverage gaps (areas that ran out of
 search budget), and anything the user must deploy (web changes go out through the Vercel CLI).
