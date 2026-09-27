@@ -6,8 +6,8 @@ Canonical domain: **https://findfightgyms.com**. Product name: FightGyms.
 
 The launch slice does not depend on Jev. It provides safe SEO behavior and a public-source candidate queue/importer. Code checks are not proof of a live deployment or database connection.
 
-- Configure the Vercel project from repository `vnguyendc/fightgyms`, production branch `master`, root directory `web`, using Node 22.
-- Set `NEXT_PUBLIC_SITE_URL=https://findfightgyms.com`, `NEXT_PUBLIC_SUPABASE_URL`, and the **public anon** `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Never expose a service-role key to the browser.
+- Configure the Vercel project from repository `vnguyendc/fightgyms`, production branch `master`, **Root Directory `web`** (without it every git-triggered build fails with "Couldn't find any `pages` or `app` directory"; set 2026-09-27), using Node 22.
+- Set `NEXT_PUBLIC_SITE_URL=https://www.findfightgyms.com` (production canonical host is www; apex 308s to it), `NEXT_PUBLIC_SUPABASE_URL`, and the **public anon** `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Never expose a service-role key to the browser.
 - Leave `SHOW_SAMPLE` unset/`0`. Verify the existing schema and public-read RLS with actual data before publishing.
 - Apply `supabase/migrations/0003_gym_cards_v3.sql` (`cd scrapers && .venv/bin/python run_sql.py ../supabase/migrations/0003_gym_cards_v3.sql`) before deploying a build that reads `trial_cents`/`class_count`. Older rows render as missing data, not errors. Rollback is re-running the view definition in `0002_photos.sql`; never drop data.
 - Apply `supabase/migrations/0004_submissions_policy.sql` before or with the first deploy that serves the correction form: it narrows the public insert policy on `submissions` to pending rows with allowed fields and bounded sizes. Rollback is re-creating the `with check (true)` policy from `0001_init.sql`.

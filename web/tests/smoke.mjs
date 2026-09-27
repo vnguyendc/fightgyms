@@ -16,7 +16,7 @@ async function request(path) {
   const response = await fetch(`http://127.0.0.1:${port}${path}`, {
     headers: { "user-agent": "Googlebot" }, signal: AbortSignal.timeout(15000),
   });
-  return { status: response.status, html: await response.text() };
+  return { status: response.status, html: await response.text(), headers: response.headers };
 }
 try {
   await new Promise((resolve, reject) => {
@@ -40,6 +40,33 @@ try {
     assert.match(html, path.startsWith("/claim") ? /not available yet/ : /Directory temporarily unavailable/);
     console.log(`PASS ${status} ${path}: self canonical, noindex, honest state`);
   }
+  for (const path of ["/about", "/privacy"]) {
+    const { status, html } = await request(path);
+    assert.equal(status, 200, path);
+    assert.match(html, /<meta name="robots" content="noindex, nofollow"/);
+    assert.ok(html.includes(`<link rel="canonical" href="https://findfightgyms.com${path}"`), path);
+    assert.doesNotMatch(html, /Directory temporarily unavailable/);
+    console.log(`PASS ${status} ${path}: static page renders without a backend`);
+  }
+  const home = await request("/");
+  const homeHtml = home.html;
+  assert.equal(home.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(home.headers.get("x-frame-options"), "DENY");
+  assert.equal(home.headers.get("referrer-policy"), "strict-origin-when-cross-origin");
+  assert.ok(home.headers.get("permissions-policy"), "permissions-policy header");
+  assert.equal(home.headers.get("x-powered-by"), null, "framework header removed");
+  console.log("PASS /: security headers, no x-powered-by");
+  assert.match(homeHtml, /href="\/about"/);
+  assert.match(homeHtml, /href="\/privacy"/);
+  assert.match(homeHtml, /"@type":"WebSite"/);
+  assert.match(homeHtml, /"@type":"Organization"/);
+  assert.match(homeHtml, /"@type":"SearchAction"/);
+  console.log("PASS /: footer links about + privacy; site JSON-LD present");
+  const missing = await request("/no-such-page");
+  assert.equal(missing.status, 404);
+  const directives = [...missing.html.matchAll(/<meta name="robots" content="([^"]*)"/g)].map((m) => m[1]);
+  assert.ok(directives.length >= 1 && directives.every((d) => d.startsWith("noindex")), `404 pages must never carry an index directive: ${directives}`);
+  console.log("PASS 404: robots directives all noindex");
   for (const path of ["/gym/sample-siam-strike-arlington-va", "/gyms/va/arlington", "/gyms/va/arlington/muay-thai", "/gyms/all/page/2"]) {
     const { status, html } = await request(path);
     assert.equal(status, 404, path);

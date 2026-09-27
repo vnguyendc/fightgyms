@@ -10,6 +10,8 @@ import * as all from "../src/app/gyms/all/page";
 import * as allPage from "../src/app/gyms/all/page/[n]/page";
 import * as events from "../src/app/events/page";
 import * as search from "../src/app/search/page";
+import * as about from "../src/app/about/page";
+import * as privacy from "../src/app/privacy/page";
 import sitemap from "../src/app/sitemap";
 import robots from "../src/app/robots";
 import { gym, place } from "./fixtures";
@@ -23,6 +25,8 @@ delete process.env.SHOW_SAMPLE;
 const cityProps = { params: Promise.resolve({ state: "va", city: "arlington" }), searchParams: Promise.resolve({}) };
 const styleProps = { ...cityProps, params: Promise.resolve({ state: "va", city: "arlington", style: "muay-thai" }) };
 const gymProps = { ...cityProps, params: Promise.resolve({ slug: gym.slug }) };
+// next/navigation encodes the target and status in the error digest, not the message
+const redirectsToCity = (e: unknown) => /^NEXT_REDIRECT;\w+;\/gyms\/va\/arlington;308;/.test(String((e as { digest?: string }).digest));
 
 function fixtureResponse(input: string | URL | Request) {
   const url = new URL(input instanceof Request ? input.url : input);
@@ -38,7 +42,6 @@ test("populated routes have precise self canonicals and truthful metadata; empty
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => fixtureResponse(input));
   for (const [metadata, path] of [
     [await city.generateMetadata(cityProps), "/gyms/va/arlington"],
-    [await style.generateMetadata(styleProps), "/gyms/va/arlington/muay-thai"],
     [await profile.generateMetadata(gymProps), "/gym/test-gym"],
     [await all.generateMetadata(), "/gyms/all"],
   ] as const) {
@@ -47,7 +50,10 @@ test("populated routes have precise self canonicals and truthful metadata; empty
     assert.deepEqual(metadata.robots, { index: true, follow: true });
     assert.doesNotMatch(metadata.description ?? "", /Every |real drop-in|Prices, class schedule, coaches and fighter records/);
   }
-  assert.deepEqual(await style.generateStaticParams(), [{ state: "va", city: "arlington", style: "muay-thai" }]);
+  // one gym, one discipline: the discipline page would duplicate the city page, so it redirects and is never generated
+  assert.deepEqual(await style.generateStaticParams(), []);
+  await assert.rejects(() => style.generateMetadata(styleProps), redirectsToCity);
+  await assert.rejects(() => style.default(styleProps), redirectsToCity);
   const empty = { ...styleProps, params: Promise.resolve({ state: "va", city: "arlington", style: "kickboxing" }) };
   await assert.rejects(() => style.generateMetadata(empty), /NEXT_HTTP_ERROR_FALLBACK;404/);
   await assert.rejects(() => style.default(empty), /NEXT_HTTP_ERROR_FALLBACK;404/);
@@ -61,8 +67,7 @@ test("populated routes have precise self canonicals and truthful metadata; empty
   assert.match(html, /Most complete listings/);
   assert.match(html, /name="q"/);
   assert.doesNotMatch(html, /Explore the directory|listed alphabetically/);
-  assert.match(html, /href="\/gyms\/va\/arlington\/muay-thai"/);
-  assert.doesNotMatch(html, /href="\/gyms\/va\/arlington\/kickboxing"/);
+  assert.doesNotMatch(html, /href="\/gyms\/va\/arlington\/(muay-thai|kickboxing)"/, "home never links a redirecting discipline page");
   assert.match(html, /href="\/gyms\/all"/);
   assert.match(renderToStaticMarkup(await cities.default()), /href="\/gyms\/all"/);
 });
@@ -74,9 +79,12 @@ test("profiles use escaped, rating-free JSON-LD and preserve usable city links w
     return fixtureResponse(input);
   });
   const html = renderToStaticMarkup(await profile.default(gymProps));
-  assert.equal((html.match(/<script/g) ?? []).length, 1);
-  const schema = JSON.parse(html.match(/type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
+  assert.equal((html.match(/<script/g) ?? []).length, 2, "LocalBusiness + BreadcrumbList, nothing else");
+  const [schema, crumbs] = [...html.matchAll(/type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
   assert.equal(schema.name, hostile.name);
+  assert.equal(crumbs["@type"], "BreadcrumbList");
+  assert.deepEqual(crumbs.itemListElement.map((i: { name: string; item: string }) => [i.name, i.item]),
+    [["Gyms", "https://findfightgyms.com/gyms"], ["Arlington, VA", "https://findfightgyms.com/gyms/va/arlington"], [hostile.name, "https://findfightgyms.com/gym/test-gym"]]);
   assert.equal(schema.url, "https://findfightgyms.com/gym/test-gym");
   assert.equal(schema.aggregateRating, undefined);
   assert.doesNotMatch(html, /★|Google reviews|javascript:|Claim free|we&#x27;ll verify|Monthly unlimited|paused/i);
@@ -86,14 +94,59 @@ test("profiles use escaped, rating-free JSON-LD and preserve usable city links w
   assert.match(html, /name="website_url"/);
   assert.match(html, /What it costs[\s\S]*No prices listed yet/);
   assert.match(html, /href="\/gyms\/va\/arlington"/);
-  assert.match(html, /href="\/gyms\/va\/arlington\/muay-thai"/);
+  assert.doesNotMatch(html, /href="\/gyms\/va\/arlington\/muay-thai"/, "discipline link falls back to the city page when that page would redirect");
 });
+
+test("a discipline page that is a strict subset of its city renders, is indexable, and is linked; the redundant one redirects", async t => {
+  const both = { ...gym, id: "both", slug: "both-gym", name: "Both Gym", styles: ["muay_thai" as const, "kickboxing" as const] };
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+    const u = new URL(input instanceof Request ? input.url : input);
+    if (u.pathname.endsWith("/gym_cards") && !u.searchParams.get("slug")?.startsWith("eq.")) {
+      const wanted = u.searchParams.get("styles")?.startsWith("cs.") ? [both] : [gym, both]; // cs. = contains(style); ov. = the live-styles overlap every query has
+      return Response.json(wanted);
+    }
+    return fixtureResponse(input);
+  });
+  const kb = { ...cityProps, params: Promise.resolve({ state: "va", city: "arlington", style: "kickboxing" }) };
+  assert.deepEqual(await style.generateStaticParams(), [{ state: "va", city: "arlington", style: "kickboxing" }]);
+  const metadata = await style.generateMetadata(kb);
+  assert.equal(metadata.alternates?.canonical, "https://findfightgyms.com/gyms/va/arlington/kickboxing");
+  assert.deepEqual(metadata.robots, { index: true, follow: true });
+  const html = renderToStaticMarkup(await style.default(kb));
+  assert.match(html, /href="\/gym\/both-gym"/);
+  assert.doesNotMatch(html, /href="\/gym\/test-gym"/);
+  await assert.rejects(() => style.default(styleProps), redirectsToCity);
+  const urls = (await sitemap()).map(e => e.url);
+  assert.ok(urls.includes("https://findfightgyms.com/gyms/va/arlington/kickboxing"));
+  assert.ok(!urls.includes("https://findfightgyms.com/gyms/va/arlington/muay-thai"));
+  const homeHtml = renderToStaticMarkup(await home.default());
+  assert.match(homeHtml, /href="\/gyms\/va\/arlington\/kickboxing"/);
+  assert.doesNotMatch(homeHtml, /href="\/gyms\/va\/arlington\/muay-thai"/);
+  const cityHtml = renderToStaticMarkup(await city.default(cityProps));
+  assert.match(cityHtml, /href="\/gyms\/va\/arlington\/kickboxing"/);
+  assert.doesNotMatch(cityHtml, /href="\/gyms\/va\/arlington\/muay-thai"/);
+});
+
+
+test("a city with no listed neighbour within 25 miles still links its nearest listed cities", async t => {
+  const far = { ...place, id: "far", slug: "winchester-va", city: "Winchester", lat: 39.185, lng: -78.163 };
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+    const u = new URL(input instanceof Request ? input.url : input);
+    if (u.pathname.endsWith("/places")) return Response.json(u.searchParams.get("slug")?.startsWith("eq.") ? place : [place, far]);
+    if (u.pathname.endsWith("/gym_cards") && !u.searchParams.get("place_slug") && !u.searchParams.get("slug")) return Response.json([gym, { ...gym, id: "w", slug: "w-gym", place_slug: "winchester-va" }]);
+    return fixtureResponse(input);
+  });
+  const html = renderToStaticMarkup(await city.default(cityProps));
+  assert.match(html, /Nearest listed cities:/);
+  assert.match(html, /href="\/gyms\/va\/winchester"/);
+});
+
 
 test("preview and demo routes stay noindex even with content; sitemap is empty", async t => {
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => fixtureResponse(input));
   process.env.VERCEL_ENV = "preview";
   try {
-    for (const metadata of [await home.generateMetadata(), await cities.generateMetadata(), await all.generateMetadata(), await events.generateMetadata(), await city.generateMetadata(cityProps), await style.generateMetadata(styleProps), await profile.generateMetadata(gymProps)]) {
+    for (const metadata of [await home.generateMetadata(), await cities.generateMetadata(), await all.generateMetadata(), await events.generateMetadata(), await city.generateMetadata(cityProps), await profile.generateMetadata(gymProps)]) {
       assert.deepEqual(metadata.robots, { index: false, follow: false });
     }
     assert.deepEqual(await sitemap(), []);
@@ -193,4 +246,24 @@ test("profiles show what it costs, where the facts came from, and the nearest gy
   assert.match(html, /Nearby gyms[\s\S]*href="\/gym\/near-gym"[\s\S]*mi</);
   const schema = JSON.parse(html.match(/type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
   assert.equal(schema.priceRange, "$20 trial");
+});
+
+test("about and privacy pages are indexable, self-canonical, and state the method and the data handling plainly", async () => {
+  for (const [route, path] of [[about, "/about"], [privacy, "/privacy"]] as const) {
+    const metadata = await route.generateMetadata();
+    assert.equal(metadata.alternates?.canonical, `https://findfightgyms.com${path}`);
+    assert.deepEqual(metadata.robots, { index: true, follow: true });
+  }
+  const aboutHtml = renderToStaticMarkup(await about.default());
+  assert.match(aboutHtml, /<h1[^>]*>About FightGyms/);
+  assert.match(aboutHtml, /manually checked[\s\S]*verified by phone[\s\S]*confirmed by gym[\s\S]*from gym website[\s\S]*reported by a member/, "verification tiers, in the order the site ranks them");
+  assert.match(aboutHtml, /never (invent|estimate)/i);
+  assert.match(aboutHtml, /href="\/privacy"/);
+  assert.doesNotMatch(aboutHtml, /Google rating|reviews|★/);
+  const privacyHtml = renderToStaticMarkup(await privacy.default());
+  assert.match(privacyHtml, /<h1[^>]*>Privacy/);
+  assert.match(privacyHtml, /contact email/i);
+  assert.match(privacyHtml, /Vercel Web Analytics/);
+  assert.doesNotMatch(privacyHtml, /Google Analytics|GA4|cookie banner/i, "must not describe tooling the site does not run");
+  assert.match(privacyHtml, /do not set cookies/);
 });

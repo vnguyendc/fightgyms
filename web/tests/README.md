@@ -15,7 +15,7 @@ The smoke command starts/stops a local production server on port 3108 (`SMOKE_PO
 
 ## Production environment
 
-- `NEXT_PUBLIC_SITE_URL=https://findfightgyms.com` (also the default). Overrides must be HTTPS origins without credentials, path, query or fragment. Local HTTP is accepted only in development. Invalid overrides fail the build rather than publishing bad canonicals.
+- `NEXT_PUBLIC_SITE_URL=https://www.findfightgyms.com` in production (the apex 308s to www; the code default is the apex, so set this explicitly). Overrides must be HTTPS origins without credentials, path, query or fragment. Local HTTP is accepted only in development. Invalid overrides fail the build rather than publishing bad canonicals.
 - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` must both be configured. Use the public anonymous key with the existing public-read schema/RLS, **not** a service-role key. Configuration alone is not proof of database reachability or correct RLS.
 - Leave `SHOW_SAMPLE` unset or `0`. Production never serves bundled samples, even with `SHOW_SAMPLE=1`; that flag also disables indexing.
 - Vercel sets `VERCEL_ENV`: only `production` (or unset for self-hosted production) is eligible for indexing. Preview/development and explicit non-production demo mode are always noindex and have an empty sitemap.
