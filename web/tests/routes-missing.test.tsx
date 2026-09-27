@@ -54,7 +54,7 @@ test("claim stays noindex and says the feature is not available yet, independent
   // Layout imports build-time next/font and CSS; check its static footer copy offline.
   const layout = readFileSync(new URL("../src/app/layout.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(layout, /paused/i);
-  assert.match(layout, /Updates \(not available yet\)/);
+  assert.match(layout, /Claim or submit a gym/);
   assert.match(layout, /<SiteSearch/);
 });
 

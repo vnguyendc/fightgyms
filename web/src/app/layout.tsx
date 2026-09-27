@@ -51,7 +51,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/gyms/all" className="hover:text-ink">All gyms</Link>
               <Link href="/about" className="hover:text-ink">About</Link>
               <Link href="/privacy" className="hover:text-ink">Privacy</Link>
-              <Link href="/claim" className="hover:text-ink">Updates (not available yet)</Link>
+              <Link href="/claim" className="hover:text-ink">Claim or submit a gym</Link>
             </span>
           </div>
         </footer>

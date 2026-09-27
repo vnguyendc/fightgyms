@@ -10,8 +10,8 @@ Operational gates (Vercel config, credentials, candidate pipeline, SEO verificat
 
 ## layout
 
-- `web/` — Next.js 16 app router (params are Promises; `PageProps<'/route'>` helper), Tailwind v4, `@supabase/supabase-js`. ISR 1h on all directory pages. Read `web/AGENTS.md` and `node_modules/next/dist/docs` before touching Next APIs. `web/src/lib/site.ts` owns `runtimePolicy()` (live / demo / unavailable), `pageMetadata()`, `jsonLd()`, `cityPath()`, sitemap rules. `lib/geo.ts` (distance, completeness, coverage), `lib/format.ts` (client-safe display helpers), `lib/search.ts` (index matcher), `lib/submissions.ts` (correction parsing + pending insert). Tests in `web/tests` (see its README).
-- `supabase/migrations/0001_init.sql` — schema + RLS + views. `0002_photos.sql` — `gym_photos` + `gym-photos` storage bucket, adds `photo_path` to `gym_cards`. `0003_gym_cards_v3.sql` — adds `trial_cents`, `class_count` to `gym_cards`. `0004_submissions_policy.sql` — pending-only, bounded insert policy on `submissions`. `supabase/seed.sql` — 6 fictional demo gyms flagged `is_sample`.
+- `web/` — Next.js 16 app router (params are Promises; `PageProps<'/route'>` helper), Tailwind v4, `@supabase/supabase-js`. ISR 1h on all directory pages. Read `web/AGENTS.md` and `node_modules/next/dist/docs` before touching Next APIs. `web/src/lib/site.ts` owns `runtimePolicy()` (live / demo / unavailable), `pageMetadata()`, `jsonLd()`, `cityPath()`, sitemap rules. `lib/geo.ts` (distance, completeness, coverage), `lib/format.ts` (client-safe display helpers), `lib/search.ts` (index matcher), `lib/submissions.ts` (correction parsing + pending insert), `lib/auth.ts` (ssr cookie sessions, request/page clients), `lib/claims.ts` (claim parsing + own rows), `src/proxy.ts` (session refresh on /claim only). Tests in `web/tests` (see its README).
+- `supabase/migrations/0001_init.sql` — schema + RLS + views. `0002_photos.sql` — `gym_photos` + `gym-photos` storage bucket, adds `photo_path` to `gym_cards`. `0003_gym_cards_v3.sql` — adds `trial_cents`, `class_count` to `gym_cards`. `0004_submissions_policy.sql` — pending-only, bounded insert policy on `submissions`. `0005_claims.sql` — claims columns/policies/triggers, `new_gym` submissions, reviewer views. `supabase/seed.sql` — 6 fictional demo gyms flagged `is_sample`.
 - `scrapers/` — python 3.12. `seed_places.py` (Google Places → gyms; legacy, review provider terms before reuse), `extract_site.py` (crawl → Claude Haiku structured output → validated prices/classes), `fetch_photos.py` (site images → Haiku vision filter → storage), `public_candidates.py` (reviewed public-source candidate queue/importer, the intended recurring discovery path; scoped by the region lists in `cities/*.txt`: DMV, NYC, NJ, PA), `geocode_census.py` (census geocoder → lat/lng for gyms without coordinates), `jev_triage.py` (optional shadow triage; never publishes), `run_sql.py` (migrations / one-off sql without psql). Tests: `python -m unittest discover -s scrapers/tests` from the repo root.
 
 ## how it runs
@@ -19,7 +19,7 @@ Operational gates (Vercel config, credentials, candidate pipeline, SEO verificat
 - `cd web && npm ci && SHOW_SAMPLE=1 npm run dev` — fictional demo from `web/src/data/sample.json`. Production never serves samples; without a real Supabase config it renders an unavailable, noindex state.
 - With Supabase env set, `web/src/lib/data.ts` reads `gym_cards` / `gym_current_prices` / `gym_photos`. Read errors throw (no silent empty listings).
 - Scraper env lives in `scrapers/.env` (gitignored; scripts do not auto-load it): `DATABASE_URL` (session pooler, not the IPv6-only direct host), `GOOGLE_PLACES_KEY`, `ANTHROPIC_API_KEY`, `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` (photos upload).
-- Full check: `cd web && npm test && npm run typecheck && npm run lint && npm run build && npm run test:smoke` (smoke needs an unconfigured production build). Keep it green.
+- Full check: `cd web && npm test && npm run typecheck && npm run lint && npm run build && npm run test:smoke` (smoke needs an unconfigured production build; with a `web/.env.local` present set `NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY=` on the build and smoke commands, since `next build` loads the file regardless). Keep it green.
 - Migrations verified against Postgres 16 / PGlite with stubbed `auth` and `storage` schemas; `seed.sql` applies after 0001.
 
 ## conventions
@@ -33,7 +33,7 @@ Operational gates (Vercel config, credentials, candidate pipeline, SEO verificat
 
 ## next (in order)
 
-1. magic-link auth + `claims`; then photo upload on `/claim` (storage policy for verified claimants already in 0002). `POST /api/submissions` (pending corrections from gym pages) is done.
+1. photo upload on `/claim` for verified claimants (storage policy already in 0002); claimant self-serve editing as its own spec. magic-link auth + `claims` + new-gym submissions are done (see `docs/launch-operations.md` "Gym claims" for the smtp/template gates).
 2. `scrapers/enrich_tapology.py` — gym → fighters with records; then `select refresh_gym_fighter_stats()`.
 3. Templates: `/gyms/[state]/[city]/drop-in`, `/beginner`, `/fighter-gyms`; `/fighters/[slug]`, `/coaches/[slug]`.
 4. Cost-by-city editorial pages backed by `gym_current_prices`.

@@ -82,6 +82,7 @@ test("city pages order by completeness, state coverage honestly, and offer nearb
   const dc = { ...place, slug: "washington-dc", city: "Washington", state: "DC", lat: 38.9072, lng: -77.0369 };
   const nearby = [{ place: dc, distanceMi: 3.4, count: 16 }];
   const html = renderToStaticMarkup(<CityPage place={place} gyms={rows} nearby={nearby} />);
+  assert.match(html, /Gym missing\? <a[^>]*href="\/claim#submit"[^>]*>Submit it\.<\/a>/);
   assert.match(html, /2 gyms · 1 beginner friendly · 1 with a listed price · most complete listings first/);
   assert.ok(html.indexOf('href="/gym/able"') < html.indexOf('href="/gym/zed"'), "server order is the completeness order");
   const json = JSON.parse(html.match(/type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);

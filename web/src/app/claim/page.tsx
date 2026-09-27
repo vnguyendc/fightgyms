@@ -1,47 +1,34 @@
-import Link from "next/link";
-import { pageMetadata } from "@/lib/site";
+import ClaimView, { type ClaimState } from "@/components/ClaimView";
+import { SLUG, currentUser } from "@/lib/auth";
+import { listOwnClaims, listOwnSubmissions } from "@/lib/claims";
+import { getGymCard, getGymCardsByIds } from "@/lib/data";
+import { pageMetadata, runtimePolicy } from "@/lib/site";
 
-export const metadata = pageMetadata("/claim", "Gym claims — coming soon", "Gym claims are not available yet. Listing corrections are reviewed before anything is published.", false);
+export const metadata = pageMetadata("/claim", "Claim or submit a gym",
+  "Claim your gym listing or submit a gym that is not listed yet. Every claim and submission is reviewed before anything is published.", false);
 
-const ERRORS: Record<string, string> = {
-  notfound: "That gym is not listed, so the correction could not be filed.",
-  field: "Pick what you are reporting and try again.",
-  value: "Check the value: prices are dollar amounts between $1 and $1,000, websites need a full https address, and notes are limited to 1,000 characters.",
-};
-const SLUG = /^[a-z0-9-]{1,120}$/;
+type Params = Record<string, string | string[] | undefined>;
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
+const SIGNED_OUT_NOTICES = new Set(["signin", "auth", "link", "email"]);
+
+/** Everything /claim can show, resolved from the query and the session. Exported for tests; the page is the wrapper. */
+export async function resolveClaimState(sp: Params): Promise<ClaimState> {
+  const gymSlug = SLUG.test(one(sp.gym)) ? one(sp.gym) : null;
+  if (runtimePolicy().mode !== "live") return { kind: "unavailable", gym: gymSlug };
+  if (one(sp.sent) === "1") return { kind: "sent", gym: gymSlug };
+  if (one(sp.claimed) === "1") return { kind: "claimed", gym: gymSlug };
+  if (one(sp.submitted) === "gym") return { kind: "submitted-gym" };
+  if (one(sp.submitted) === "1") return { kind: "submitted", gym: gymSlug };
+  const error = one(sp.error);
+  if (error && !SIGNED_OUT_NOTICES.has(error)) return { kind: "error", code: error, field: one(sp.field) || null, gym: gymSlug };
+  const [session, gym] = await Promise.all([currentUser(), gymSlug ? getGymCard(gymSlug) : Promise.resolve(null)]);
+  if (!session) return { kind: "signed-out", gym, gymSlug, notice: error || null };
+  const [claims, submissions] = await Promise.all([listOwnClaims(session.client), listOwnSubmissions(session.client)]);
+  const ids = [...new Set([...claims.map((c) => c.entity_id), ...submissions.map((s) => s.entity_id)].filter((id): id is string => !!id))];
+  const gyms = await getGymCardsByIds(ids);
+  return { kind: "signed-in", user: session.user, gym, gymSlug, claims, submissions, gyms };
+}
 
 export default async function Claim({ searchParams }: PageProps<"/claim">) {
-  const sp = await searchParams;
-  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
-  const gym = SLUG.test(one(sp.gym)) ? one(sp.gym) : null;
-  const back = gym ? `/gym/${gym}` : "/gyms";
-  const backLabel = gym ? "Back to the gym" : "Browse the gym directory";
-  const submitted = one(sp.submitted) === "1";
-  const error = one(sp.error);
-
-  if (submitted) {
-    return (
-      <div className="mx-auto max-w-xl px-4 py-10">
-        <h1 className="text-3xl font-semibold tracking-tight">Thanks for the correction</h1>
-        <p className="text-muted mt-2">We review every submission before anything is published. The listing does not change until it has been checked.</p>
-        <Link href={back} className="mt-6 inline-block underline">{backLabel} →</Link>
-      </div>
-    );
-  }
-  if (error) {
-    return (
-      <div className="mx-auto max-w-xl px-4 py-10">
-        <h1 className="text-3xl font-semibold tracking-tight">That correction did not go through</h1>
-        <p className="text-muted mt-2">{ERRORS[error] ?? "Something went wrong saving it. Please try again in a moment."}</p>
-        <Link href={back} className="mt-6 inline-block underline">{backLabel} →</Link>
-      </div>
-    );
-  }
-  return (
-    <div className="mx-auto max-w-xl px-4 py-10">
-      <h1 className="text-3xl font-semibold tracking-tight">{one(sp.fix) === "1" ? "Listing corrections" : "Gym claims"}</h1>
-      <p className="text-muted mt-2">Gym claims are not available yet. To correct a listing, use the correction box on the gym&apos;s page. No information is collected on this page.</p>
-      <Link href={back} className="mt-6 inline-block underline">{backLabel} →</Link>
-    </div>
-  );
+  return <ClaimView state={await resolveClaimState(await searchParams)} />;
 }

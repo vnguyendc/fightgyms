@@ -73,7 +73,7 @@ test("populated routes have precise self canonicals and truthful metadata; empty
 });
 
 test("profiles use escaped, rating-free JSON-LD and preserve usable city links without bogus claims", async t => {
-  const hostile = { ...gym, name: '</script><script>alert("test")</script>', website: "javascript:alert(1)" };
+  const hostile = { ...gym, name: '</script><script>alert("test")</script>', website: "javascript:alert(1)", claimed: false };
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
     if (String(input).includes("/gym_cards")) return Response.json(String(input).includes("slug=eq.") ? hostile : [hostile]);
     return fixtureResponse(input);
@@ -87,8 +87,17 @@ test("profiles use escaped, rating-free JSON-LD and preserve usable city links w
     [["Gyms", "https://findfightgyms.com/gyms"], ["Arlington, VA", "https://findfightgyms.com/gyms/va/arlington"], [hostile.name, "https://findfightgyms.com/gym/test-gym"]]);
   assert.equal(schema.url, "https://findfightgyms.com/gym/test-gym");
   assert.equal(schema.aggregateRating, undefined);
-  assert.doesNotMatch(html, /★|Google reviews|javascript:|Claim free|we&#x27;ll verify|Monthly unlimited|paused/i);
+  assert.doesNotMatch(html, /★|Google reviews|javascript:|we&#x27;ll verify|Monthly unlimited|paused/i);
   assert.doesNotMatch(html, /not available yet/);
+  assert.match(html, /Is this your gym\?[\s\S]*href="\/claim\?gym=test-gym"[\s\S]*Claim this gym/);
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    if (!url.pathname.endsWith("/gym_cards")) return fixtureResponse(input);
+    return Response.json(url.searchParams.get("slug")?.startsWith("eq.") ? { ...gym, claimed: true } : [{ ...gym, claimed: true }]);
+  });
+  const claimedHtml = renderToStaticMarkup(await profile.default(gymProps));
+  assert.match(claimedHtml, /Claimed by the gym[\s\S]*Staff\? Sign in/);
+  assert.doesNotMatch(claimedHtml, /Is this your gym\?/);
   assert.match(html, /<form[^>]*action="\/api\/submissions"[^>]*method="post"/);
   assert.match(html, /name="gym" value="test-gym"/);
   assert.match(html, /name="website_url"/);
@@ -158,6 +167,7 @@ test("preview and demo routes stay noindex even with content; sitemap is empty",
     const demoHtml = renderToStaticMarkup(await profile.default(sampleProps));
     assert.doesNotMatch(demoHtml, /api\/submissions/);
     assert.match(demoHtml, /not available in this environment/);
+    assert.doesNotMatch(demoHtml, /Claim this gym|\/claim\?gym=/);
     assert.deepEqual(await sitemap(), []);
   } finally {
     process.env.VERCEL_ENV = "production";

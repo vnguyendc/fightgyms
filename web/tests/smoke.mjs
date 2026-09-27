@@ -91,6 +91,16 @@ try {
   });
   assert.equal(post.status, 503);
   console.log("PASS 503 /api/submissions: refuses without a live backend");
+  const claim = await fetch(`http://127.0.0.1:${port}/api/claims`, {
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: "gym=x&role=owner", redirect: "manual", signal: AbortSignal.timeout(15000),
+  });
+  assert.equal(claim.status, 503);
+  const confirm = await fetch(`http://127.0.0.1:${port}/auth/confirm?token_hash=x&type=email&next=https://evil.test/`, { redirect: "manual", signal: AbortSignal.timeout(15000) });
+  assert.equal(confirm.status, 303);
+  assert.match(confirm.headers.get("location") ?? "", /\/claim$/);
+  assert.equal(confirm.headers.getSetCookie().length, 0);
+  console.log("PASS claims and confirm refuse without a live backend, no cookies set");
 } catch (error) {
   console.error(logs);
   throw error;

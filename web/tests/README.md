@@ -11,7 +11,7 @@ npm run build
 npm run test:smoke
 ```
 
-The smoke command starts/stops a local production server on port 3108 (`SMOKE_PORT` overrides it). It requires an **unconfigured production build**: unset both Supabase variables before building and running it. It checks actual HTTP HTML, status codes, canonicals, noindex, robots and sitemap. Unit/render tests use clearly labeled fixtures and stub only Supabase's HTTP transport; they never access or write an external database.
+The smoke command starts/stops a local production server on port 3108 (`SMOKE_PORT` overrides it). It requires an **unconfigured production build**: unset both Supabase variables before building and running it. A `web/.env.local` is loaded by `next build` even when the variables are unset in the shell, so with one present set them to empty strings instead: `NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= npm run build && NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= npm run test:smoke`. It checks actual HTTP HTML, status codes, canonicals, noindex, robots and sitemap. Unit/render tests use clearly labeled fixtures and stub only Supabase's HTTP transport; they never access or write an external database.
 
 ## Production environment
 
@@ -25,7 +25,7 @@ The smoke command starts/stops a local production server on port 3108 (`SMOKE_PO
 
 ## Data contract / publishing
 
-Reads use `gym_cards` (migration 0003 adds `trial_cents` and `class_count`; rows without them render as missing data, not errors), `places`, `gyms`, `gym_current_prices`, `classes`, `coaches`, `fighters`, `events`. The only write path is `POST /api/submissions`, which inserts `status='pending'` rows into `submissions` through the anon key, never updates directory tables, and returns 503 outside the live directory. Migration 0004 makes the row-level policy enforce the same limits, since the anon key is public and the route is not a security boundary. Keep `LIVE_STYLES` at `muay_thai` and `kickboxing`.
+Reads use `gym_cards` (migration 0003 adds `trial_cents` and `class_count`; rows without them render as missing data, not errors), `places`, `gyms`, `gym_current_prices`, `classes`, `coaches`, `fighters`, `events`. Write paths insert pending rows only: `POST /api/submissions` (corrections, anonymous or attributed to a signed-in visitor), `POST /api/submissions/gym` (a new gym, signed-in only) and `POST /api/claims` (a claim, signed-in only). Sign-in is a Supabase magic link with httpOnly cookie sessions (`src/proxy.ts` refreshes them on `/claim` only); every handler returns 503 outside the live directory. Migrations 0004 and 0005 make row-level security enforce the same limits, since the anon key is public and no route is a security boundary. The migration test runs the whole chain on PGlite. Keep `LIVE_STYLES` at `muay_thai` and `kickboxing`.
 
 Publish real active gym rows with `is_sample=false`, stable slugs, public discipline(s), and matching place records. Reserve the `sample-` slug prefix for fictional fixtures. Existing event seeds have no `is_sample` column, so `sample-*` event slugs are explicitly excluded. Do not put fictional events under ordinary slugs. Google rating fields remain stored but are not displayed, ranked on, or emitted as aggregate ratings.
 
