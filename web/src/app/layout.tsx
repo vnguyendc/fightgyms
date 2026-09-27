@@ -47,7 +47,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <span className="flex gap-4">
               <Link href="/gyms" className="hover:text-ink">All cities</Link>
               <Link href="/gyms/all" className="hover:text-ink">All gyms</Link>
-              <Link href="/claim" className="hover:text-ink">Updates (not available yet)</Link>
+              <Link href="/claim" className="hover:text-ink">Claim or submit a gym</Link>
             </span>
           </div>
         </footer>
