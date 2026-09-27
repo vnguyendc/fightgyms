@@ -260,6 +260,13 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
             </div>
             {g.founded_year && <div className="mt-4 text-xs text-muted">Est. {g.founded_year}</div>}
           </div>
+          {live && (
+            <div className="rounded-xl border border-line p-4 text-sm">
+              <div className="font-medium">{g.claimed ? "Claimed by the gym" : "Is this your gym?"}</div>
+              <p className="text-muted mt-1">{g.claimed ? "Staff can sign in to keep this listing current." : "Claim it free to get the verified badge and have your corrections marked as confirmed by the gym."}</p>
+              <Link href={`/claim?gym=${g.slug}`} className="mt-3 inline-block underline">{g.claimed ? "Staff? Sign in →" : "Claim this gym →"}</Link>
+            </div>
+          )}
           {live ? (
             <CorrectionForm slug={g.slug} />
           ) : (

@@ -94,6 +94,7 @@ export default function CityPage({ place, gyms, style, nearby = [] }: { place: P
       )}
 
       {nearby.length > 0 && <NearbyCities city={place.city} nearby={nearby} />}
+      <p className="mt-10 text-sm text-muted">Gym missing? <Link href="/claim#submit" className="underline">Submit it.</Link></p>
     </div>
   );
 }
