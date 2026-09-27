@@ -73,11 +73,12 @@ test("listing summary is one quotable sentence built only from listed counts and
   const monthlyOnly = { ...gym, slug: "m", trial_cents: null, drop_in_cents: null, monthly_cents: 12000 };
   const none = { ...gym, slug: "n", trial_cents: null, drop_in_cents: null, monthly_cents: null };
   assert.equal(geo.listingSummary("Muay Thai", place, [dropIn]),
-    "1 Muay Thai gym is listed in Arlington, VA. 1 of them lists a price; trial or drop-in classes start at $30.");
+    "1 Muay Thai gym is listed in Arlington, VA. It lists a price; trial or drop-in classes start at $30.");
   assert.equal(geo.listingSummary("Muay Thai & Kickboxing", place, [trial, dropIn, none]),
     "3 Muay Thai & Kickboxing gyms are listed in Arlington, VA. 2 of them list a price; trial or drop-in classes start at $30.");
   assert.equal(geo.listingSummary("Kickboxing", place, [monthlyOnly, none]),
     "2 Kickboxing gyms are listed in Arlington, VA. 1 of them lists a price.");
+  assert.equal(geo.listingSummary("Kickboxing", place, [monthlyOnly]), "1 Kickboxing gym is listed in Arlington, VA. It lists a price.");
   assert.equal(geo.listingSummary("Kickboxing", place, [none]), "1 Kickboxing gym is listed in Arlington, VA.");
   assert.equal(geo.listingSummary("Kickboxing", place, []), "");
 });

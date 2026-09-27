@@ -106,7 +106,7 @@ export function listingSummary(label: string, place: Pick<Place, "city" | "state
   const entry = gyms.flatMap((g) => [g.trial_cents, g.drop_in_cents]).filter((c): c is number => c != null);
   let text = `${n} ${label} gym${n === 1 ? " is" : "s are"} listed in ${place.city}, ${place.state}.`;
   if (priced) {
-    text += ` ${priced} of them list${priced === 1 ? "s" : ""} a price`;
+    text += n === 1 ? " It lists a price" : ` ${priced} of them list${priced === 1 ? "s" : ""} a price`;
     text += entry.length ? `; trial or drop-in classes start at ${money(Math.min(...entry))}.` : ".";
   }
   return text;
