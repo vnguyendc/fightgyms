@@ -2,7 +2,7 @@
 
 Combat sports gym directory. Database/directory SaaS + programmatic SEO play.
 Muay thai + kickboxing pages live first; MMA, BJJ stored but gated behind `LIVE_STYLES` in `web/src/lib/types.ts`.
-Canonical domain `https://findfightgyms.com`, product name FightGyms (`web/src/lib/site.ts`).
+Canonical host in production is `https://www.findfightgyms.com` (apex 308s to www; `NEXT_PUBLIC_SITE_URL` is set on Vercel, the code default is the apex). Product name FightGyms (`web/src/lib/site.ts`).
 
 Full playbook (competitors, data sources, schema rationale, pSEO routes, discipline rollout, traffic plan):
 https://claude.ai/code/artifact/4dcfe436-3410-4c99-8ea5-fa9f349c611b
@@ -41,4 +41,4 @@ Operational gates (Vercel config, credentials, candidate pipeline, SEO verificat
 
 ## git
 
-Remote github.com/vnguyendc/fightgyms, default branch `master`. Work lands via PRs. Vercel project `fightgyms` deploys `web/` (currently via CLI, not git integration).
+Remote github.com/vnguyendc/fightgyms, default branch `master`. Work lands via PRs. Vercel project `fightgyms` has git integration with Root Directory `web` (set 2026-09-27): merges to master deploy production, PRs get previews. `vercel --prod` from `web/` still works as a manual path.
