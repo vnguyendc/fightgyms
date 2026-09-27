@@ -68,6 +68,23 @@ A schedule is active only when its exact job record has been created and verifie
 
 There is no guarantee of rankings or traffic merely from deploying a sitemap. No Search Console submission, ranking, or traffic result is claimed here.
 
+## Gym claims
+
+Owners sign in by magic link, claim a listing, and submit missing gyms. Every row they create is `pending`; only the reviewer changes status. Gates before this works for anyone outside the Supabase project team:
+
+1. **Custom SMTP.** The built-in sender delivers 2 messages per hour and refuses addresses outside the project team. Configure a provider (Resend, Postmark or SES) with a findfightgyms.com sender and its DNS records under Authentication → SMTP settings. The default limit then becomes 30 emails per hour; raise it under Rate Limits if claims outpace it.
+2. **Email provider and templates.** Authentication → Providers → Email enabled. Set both the "Magic link or OTP" and "Confirm sign up" templates to link to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next={{ .RedirectTo }}`. Site URL `https://findfightgyms.com`.
+3. **Redirect allow-list** (URL Configuration): `https://findfightgyms.com/claim*` (matches `?gym=<slug>`, not `/claim/x`) and `http://localhost:3000/**` for development. Auth emails always link to production, so previews never exercise the flow.
+4. **Migration 0005.** First confirm `select count(*) from submissions where entity_id is null` is 0 (the shape constraint needs it), then `cd scrapers && .venv/bin/python run_sql.py ../supabase/migrations/0005_claims.sql`. It rewrites the 0004 insert policy with `new_gym` added, hardens `claims` (users insert pending rows for themselves only; status is reviewer-only) and adds `claim_review` / `submission_review` for the SQL editor. If the Data API reports an unknown column afterwards, run `notify pgrst, 'reload schema'`. Rollback is reverting the app; keep the policies.
+
+Review, as postgres in the SQL editor:
+
+- Claim: `select * from claim_review where status = 'pending'`; `domain_match` is true when the sign-in email's domain equals the gym's website host. `update claims set status = 'verified' where id = '<id>'` (or `'rejected'`). The trigger flips `gyms.claimed`; cards and profiles follow within the hour.
+- New gym: `select * from submission_review where field = 'new_gym' and status = 'pending'`. Create the gym through the normal path with a `sources` row `kind = 'user_submit'` whose `raw` is the submission's `proposed_value`, then `update submissions set status = 'approved' where id = '<id>'`. When the role was owner, manager or coach, `insert into claims (entity_type, entity_id, user_id, status, role, contact_email) values ('gym', '<gym id>', '<submitted_by>', 'verified', '<role>', '<contact_email>')`.
+- Corrections: rows with `from_verified_claimant = true` in `submission_review` are entered with `verified_by = 'gym_claim'`; the rest as before.
+- From 2026-10-30 new tables in `public` are not exposed to the Data API by default; grant explicitly when one is added. 0005 adds none.
+- `claim_submitted` and `gym_submitted` appear under Analytics → Events beside `correction_submitted`.
+
 ## Verification and rollback
 
 - Python: `.venv/bin/python -m unittest discover -s scrapers/tests -v`.
