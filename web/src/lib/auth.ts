@@ -89,12 +89,24 @@ export function sameOrigin(request: Request): boolean {
   try { return new URL(origin).host === host; } catch { return false; }
 }
 
-/** Only "/claim" or "/claim?gym=<slug>" on this site's origin survive; everything else lands on /claim. */
-export function claimNext(next: string | null | undefined): string {
+/** Must match the production email templates. Never use the SEO fallback or forwarded headers for auth. */
+export function authOrigin(request: Request): string | null {
+  if (process.env.NODE_ENV === "development") {
+    const url = new URL(request.url);
+    return url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ? url.origin : null;
+  }
+  if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "production") return null;
+  const origin = "https://www.findfightgyms.com";
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  return configured === origin || configured === `${origin}/` ? origin : null;
+}
+
+/** Only "/claim" or "/claim?gym=<slug>" on the trusted origin survive. */
+export function claimNext(next: string | null | undefined, origin = SITE.url): string {
   if (!next) return "/claim";
   try {
-    const u = new URL(next, SITE.url);
-    if (u.origin !== SITE.url || u.pathname !== "/claim" || u.hash) return "/claim";
+    const u = new URL(next, origin);
+    if (u.origin !== origin || u.pathname !== "/claim" || u.hash) return "/claim";
     const keys = [...u.searchParams.keys()];
     if (keys.length === 0) return "/claim";
     const gym = u.searchParams.get("gym") ?? "";

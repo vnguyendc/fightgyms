@@ -98,9 +98,7 @@ test("profiles use escaped, rating-free JSON-LD and preserve usable city links w
   const claimedHtml = renderToStaticMarkup(await profile.default(gymProps));
   assert.match(claimedHtml, /Claimed by the gym[\s\S]*Staff\? Sign in/);
   assert.doesNotMatch(claimedHtml, /Is this your gym\?/);
-  assert.match(html, /<form[^>]*action="\/api\/submissions"[^>]*method="post"/);
-  assert.match(html, /name="gym" value="test-gym"/);
-  assert.match(html, /name="website_url"/);
+  assert.doesNotMatch(html, /api\/submissions|#correct|Correct this listing/);
   assert.match(html, /What it costs[\s\S]*No prices listed yet/);
   assert.match(html, /href="\/gyms\/va\/arlington"/);
   assert.doesNotMatch(html, /href="\/gyms\/va\/arlington\/muay-thai"/, "discipline link falls back to the city page when that page would redirect");
@@ -197,7 +195,7 @@ test("preview and demo routes stay noindex even with content; sitemap is empty",
     assert.match(renderToStaticMarkup(await profile.default(sampleProps)), /Sample listing/);
     const demoHtml = renderToStaticMarkup(await profile.default(sampleProps));
     assert.doesNotMatch(demoHtml, /api\/submissions/);
-    assert.match(demoHtml, /not available in this environment/);
+    assert.doesNotMatch(demoHtml, /Corrections/);
     assert.doesNotMatch(demoHtml, /Claim this gym|\/claim\?gym=/);
     assert.deepEqual(await sitemap(), []);
   } finally {
@@ -297,7 +295,7 @@ test("about and privacy pages are indexable, self-canonical, and state the metho
   }
   const aboutHtml = renderToStaticMarkup(await about.default());
   assert.match(aboutHtml, /<h1[^>]*>About FightGyms/);
-  assert.match(aboutHtml, /manually checked[\s\S]*verified by phone[\s\S]*confirmed by gym[\s\S]*from gym website[\s\S]*reported by a member/, "verification tiers, in the order the site ranks them");
+  assert.match(aboutHtml, /manually checked[\s\S]*verified by phone[\s\S]*owner-supplied[\s\S]*from gym website[\s\S]*reported by a member/, "verification tiers, in the order the site ranks them");
   assert.match(aboutHtml, /never (invent|estimate)/i);
   assert.match(aboutHtml, /href="\/privacy"/);
   assert.doesNotMatch(aboutHtml, /Google rating|reviews|★/);

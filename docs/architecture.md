@@ -10,12 +10,12 @@ flowchart LR
 
   subgraph web["Web app: Next.js App Router / Vercel target"]
     pages["Public pages: directory, profiles, search, claim"]
-    api["Route handlers: search index, auth, claims, submissions"]
+    api["Route handlers: search index, auth, claims, new gyms, owner edits"]
   end
 
   subgraph backend["Supabase boundary"]
     auth["Auth: email OTP and sessions"]
-    db["Postgres: RLS, directory views, claims, submissions, sources"]
+    db["Postgres: RLS, directory views, claims, submissions, sources, owner audit"]
     storage["Storage: public gym-photos bucket"]
   end
 
@@ -31,7 +31,7 @@ flowchart LR
   visitor -->|"GET pages"| pages
   visitor -->|"GET search index; POST forms"| api
   pages -->|"anon key: directory reads; cookies for own claims"| db
-  api -->|"anon key or anon key plus user cookies: RLS-gated writes"| db
+  api -->|"user cookies: pending inserts or verified-owner RPC"| db
   api -->|"request / verify email OTP"| auth
   auth -.->|"planned SMTP configuration, not app email API"| smtp
   pages -->|"public photo URL via Next Image"| storage
@@ -47,15 +47,15 @@ flowchart LR
   api -->|"server request errors"| logs
 ```
 
-**Legend and trust boundary.** Solid arrows describe code paths or documented operator actions; the dashed arrow is **planned account configuration**, not a confirmed live mail integration. The web app uses the **public anon key**, including server rendering and cookie-backed signed-in route handlers. It never needs an ingestion/service-role key: Postgres RLS restricts visitor reads/writes and user-owned claims/submissions. Separately, ingestion uses an explicitly supplied privileged Postgres connection; photo uploads use a server-side service-role credential. The photo bucket is public-read. Do not put scraper credentials or service-role keys in the browser or Vercel public env.
+**Legend and trust boundary.** Solid arrows describe code paths or documented operator actions; the dashed arrow is **planned account configuration**, not a confirmed live mail integration. The web app uses the **public anon key**, including server rendering and cookie-backed signed-in route handlers. It never needs an ingestion/service-role key: Postgres RLS restricts visitor reads/writes and user-owned claims/submissions; a narrow authenticated-only RPC publishes owner edits after locking and rechecking the exact verified claim. Separately, ingestion uses an explicitly supplied privileged Postgres connection; photo uploads use a server-side service-role credential. The photo bucket is public-read. Do not put scraper credentials or service-role keys in the browser or Vercel public env.
 
 ## Main flows and evidence
 
 | Flow | Checked-in evidence |
 | --- | --- |
 | Public directory, gym detail, search, and SEO | [`web/src/lib/data.ts`](../web/src/lib/data.ts) (`getAllGyms`, `getGym` and the public anon client); [`web/src/app/gyms/[state]/[city]/page.tsx`](../web/src/app/gyms/%5Bstate%5D/%5Bcity%5D/page.tsx), [`web/src/app/gym/[slug]/page.tsx`](../web/src/app/gym/%5Bslug%5D/page.tsx) (`revalidate = 3600`); [`web/src/components/SiteSearch.tsx`](../web/src/components/SiteSearch.tsx) (browser fetches search index), [`web/src/app/api/search-index/route.ts`](../web/src/app/api/search-index/route.ts), [`web/src/app/search/page.tsx`](../web/src/app/search/page.tsx), [`web/src/app/sitemap.ts`](../web/src/app/sitemap.ts) and [`web/src/lib/site.ts`](../web/src/lib/site.ts). Search is built from public gym/place rows, not a separate search service. |
-| Identity, correction, claim and new-gym submissions | [`web/src/app/claim/page.tsx`](../web/src/app/claim/page.tsx), [`web/src/app/api/auth/link/route.ts`](../web/src/app/api/auth/link/route.ts), [`web/src/app/auth/confirm/route.ts`](../web/src/app/auth/confirm/route.ts), [`web/src/lib/auth.ts`](../web/src/lib/auth.ts) and [`web/src/proxy.ts`](../web/src/proxy.ts) (cookie-backed Supabase Auth); [`web/src/app/api/submissions/route.ts`](../web/src/app/api/submissions/route.ts), [`web/src/app/api/submissions/gym/route.ts`](../web/src/app/api/submissions/gym/route.ts), [`web/src/app/api/claims/route.ts`](../web/src/app/api/claims/route.ts). Anonymous corrections or signed-in claims/new gyms insert **pending** rows, not published listing changes. |
-| Database and image policy | [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) (directory tables, `gym_cards` / `gym_current_prices` views, RLS); [`0002_photos.sql`](../supabase/migrations/0002_photos.sql) (public bucket and claimant policies); [`0003_gym_cards_v3.sql`](../supabase/migrations/0003_gym_cards_v3.sql) (card fields); [`0004_submissions_policy.sql`](../supabase/migrations/0004_submissions_policy.sql) and [`0005_claims.sql`](../supabase/migrations/0005_claims.sql) (pending-only writes, own-row claims and reviewer views); [`0006_socials.sql`](../supabase/migrations/0006_socials.sql) (public social links). Image URLs come from [`web/src/lib/format.ts`](../web/src/lib/format.ts); **claimant photo upload UI is not implemented**. |
+| Identity, owner editing, claims and new-gym submissions | [`web/src/app/claim/page.tsx`](../web/src/app/claim/page.tsx), [`web/src/app/api/auth/link/route.ts`](../web/src/app/api/auth/link/route.ts), [`web/src/app/auth/confirm/route.ts`](../web/src/app/auth/confirm/route.ts), [`web/src/lib/auth.ts`](../web/src/lib/auth.ts) and [`web/src/proxy.ts`](../web/src/proxy.ts) (cookie-backed Supabase Auth); [`web/src/app/api/owner-edit/route.ts`](../web/src/app/api/owner-edit/route.ts), [`web/src/app/api/submissions/gym/route.ts`](../web/src/app/api/submissions/gym/route.ts), [`web/src/app/api/claims/route.ts`](../web/src/app/api/claims/route.ts). Claims/new gyms insert **pending** rows. Verified claimants publish bounded listing details and prices immediately through `edit_owned_gym`, with atomic database audit/provenance. Public corrections are retired (`/api/submissions` returns 410); historical submissions remain. |
+| Database and image policy | [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) (directory tables, `gym_cards` / `gym_current_prices` views, RLS); [`0002_photos.sql`](../supabase/migrations/0002_photos.sql) (public bucket and claimant policies); [`0003_gym_cards_v3.sql`](../supabase/migrations/0003_gym_cards_v3.sql) (card fields); [`0004_submissions_policy.sql`](../supabase/migrations/0004_submissions_policy.sql) and [`0005_claims.sql`](../supabase/migrations/0005_claims.sql) (pending-only writes, own-row claims and reviewer views); [`0006_socials.sql`](../supabase/migrations/0006_socials.sql) (public social links); [`0007_owner_edits.sql`](../supabase/migrations/0007_owner_edits.sql) (verified-owner RPC, append-only private audit, deterministic price history and correction retirement; apply before deploying the editor). Image URLs come from [`web/src/lib/format.ts`](../web/src/lib/format.ts); **claimant photo upload UI is not implemented**. |
 | Ingestion and review | [`scrapers/public_candidates.py`](../scrapers/public_candidates.py) (reviewed input, private SQLite queue, offline dry-run by default, explicit privileged `--apply`); [`scrapers/geocode_census.py`](../scrapers/geocode_census.py), [`scrapers/extract_site.py`](../scrapers/extract_site.py), [`scrapers/fetch_photos.py`](../scrapers/fetch_photos.py), [`scrapers/common/db.py`](../scrapers/common/db.py) (Postgres facts and provenance) and [`scrapers/common/storage.py`](../scrapers/common/storage.py) (service-role Storage upload). Reviewer approval/manual application is described in [`docs/launch-operations.md`](launch-operations.md#gym-claims), not implemented as an admin UI. Optional Jev triage is a disabled-by-default **shadow report**, not a publishing gate ([`docs/jev-shadow-triage.md`](jev-shadow-triage.md)). |
 | Observability and deployment target | [`web/src/app/layout.tsx`](../web/src/app/layout.tsx) and [`web/src/lib/analytics.ts`](../web/src/lib/analytics.ts) mount client SDKs and send server conversion events only on Vercel; [`web/src/instrumentation.ts`](../web/src/instrumentation.ts) writes structured errors for runtime logs. [`docs/launch-operations.md`](launch-operations.md#scope-and-current-gates) documents the Vercel `web/` root and dashboard enablement gates; it is operational configuration, not deployment proof. |
 

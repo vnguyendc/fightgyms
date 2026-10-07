@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import CorrectionForm from "@/components/CorrectionForm";
 import { Badge, FighterBadge } from "@/components/GymCard";
 import { GymPhoto } from "@/components/GymPhoto";
 import { getAllGyms, getGym, getPlace } from "@/lib/data";
@@ -44,7 +43,7 @@ const PRICE_LABEL: Record<Price["kind"], string> = {
 const VERIFIED_LABEL: Record<string, string> = {
   manual: "manually checked",
   phone: "verified by phone",
-  gym_claim: "confirmed by gym",
+  gym_claim: "owner-supplied",
   website: "from gym website",
   user_report: "reported by a member",
 };
@@ -129,6 +128,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
           </h1>
           <p className="mt-2 text-muted">{fullAddress(g)}</p>
           {trust && <p className="mt-1 text-xs text-muted">{trust}</p>}
+          {(g.owner_updated_at || g.prices.some(p => p.verified_by === "gym_claim")) && <p className="mt-2 text-xs text-muted">This listing includes owner-supplied facts. They are not independently checked. Confirm current details with the gym.</p>}
           <div className="mt-3 flex flex-wrap gap-1.5">
             {g.styles.map((s) => <Badge key={s} tone="accent">{STYLE_LABEL[s] ?? s}</Badge>)}
             <FighterBadge active={g.active_fighters} pro={g.pro_fighters} />
@@ -253,7 +253,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
                 ))}
               </ul>
             ) : (
-              <p className="mt-2 text-muted">No prices listed yet.{live && <> <a href="#correct" className="underline">Know a price? Tell us.</a></>}</p>
+              <p className="mt-2 text-muted">No prices listed yet. Contact the gym for current rates.</p>
             )}
             <div className="mt-4 space-y-1.5">
               {website && <a href={website} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">Website ↗</a>}
@@ -270,16 +270,8 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
           {live && (
             <div className="rounded-xl border border-line p-4 text-sm">
               <div className="font-medium">{g.claimed ? "Claimed by the gym" : "Is this your gym?"}</div>
-              <p className="text-muted mt-1">{g.claimed ? "Staff can sign in to keep this listing current." : "Claim it free to get the verified badge and have your corrections marked as confirmed by the gym."}</p>
+              <p className="text-muted mt-1">{g.claimed ? "Staff can sign in to keep this listing current." : "Claim it free. After manual verification, you can edit listing details and publish owner-supplied prices."}</p>
               <Link href={`/claim?gym=${g.slug}`} className="mt-3 inline-block underline">{g.claimed ? "Staff? Sign in →" : "Claim this gym →"}</Link>
-            </div>
-          )}
-          {live ? (
-            <CorrectionForm slug={g.slug} />
-          ) : (
-            <div className="rounded-xl border border-line p-4 text-sm">
-              <div className="font-medium">Corrections</div>
-              <p className="text-muted mt-1">Listing corrections are not available in this environment.</p>
             </div>
           )}
           <div className="rounded-xl border border-line p-4 text-sm">

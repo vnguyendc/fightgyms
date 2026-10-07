@@ -89,8 +89,13 @@ try {
     method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
     body: "gym=x&field=other&value=y", redirect: "manual", signal: AbortSignal.timeout(15000),
   });
-  assert.equal(post.status, 503);
-  console.log("PASS 503 /api/submissions: refuses without a live backend");
+  assert.equal(post.status, 410);
+  console.log("PASS 410 /api/submissions: correction requests retired");
+  const edit = await fetch(`http://127.0.0.1:${port}/api/owner-edit`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: "{}", redirect: "manual", signal: AbortSignal.timeout(15000),
+  });
+  assert.equal(edit.status, 503);
+  console.log("PASS 503 /api/owner-edit: refuses without a live backend");
   const claim = await fetch(`http://127.0.0.1:${port}/api/claims`, {
     method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
     body: "gym=x&role=owner", redirect: "manual", signal: AbortSignal.timeout(15000),
