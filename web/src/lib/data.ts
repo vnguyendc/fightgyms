@@ -114,7 +114,7 @@ export async function getGym(slug: string): Promise<GymDetail | null> {
   const card = await getGymCard(slug);
   if (!card) return null;
   const [gym, prices, classes, coaches, fighters, photos, socials] = await Promise.all([
-    checked(c.from("gyms").select("description, phone, affiliation, founded_year").eq("id", card.id).single()),
+    checked(c.from("gyms").select("description, phone, affiliation, founded_year, owner_updated_at").eq("id", card.id).single()),
     checked(c.from("gym_current_prices").select("*").eq("gym_id", card.id)),
     checked(c.from("classes").select("*").eq("gym_id", card.id).order("dow").order("start_time")),
     checked(c.from("coaches").select("*").eq("gym_id", card.id)),

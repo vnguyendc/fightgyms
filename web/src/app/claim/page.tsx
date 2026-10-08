@@ -1,11 +1,11 @@
 import ClaimView, { type ClaimState } from "@/components/ClaimView";
 import { SLUG, currentUser } from "@/lib/auth";
 import { listOwnClaims, listOwnSubmissions } from "@/lib/claims";
-import { getGymCard, getGymCardsByIds } from "@/lib/data";
+import { getGym, getGymCard, getGymCardsByIds } from "@/lib/data";
 import { pageMetadata, runtimePolicy } from "@/lib/site";
 
 export const metadata = pageMetadata("/claim", "Claim or submit a gym",
-  "Claim your gym listing or submit a gym that is not listed yet. Every claim and submission is reviewed before anything is published.", false);
+  "Claim your gym listing or submit a gym that is not listed yet. Claims and new gyms are reviewed by hand. Verified claimants can publish listing edits immediately.", false);
 
 type Params = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
@@ -18,7 +18,6 @@ export async function resolveClaimState(sp: Params): Promise<ClaimState> {
   if (one(sp.sent) === "1") return { kind: "sent", gym: gymSlug };
   if (one(sp.claimed) === "1") return { kind: "claimed", gym: gymSlug };
   if (one(sp.submitted) === "gym") return { kind: "submitted-gym" };
-  if (one(sp.submitted) === "1") return { kind: "submitted", gym: gymSlug };
   const error = one(sp.error);
   if (error && !SIGNED_OUT_NOTICES.has(error)) return { kind: "error", code: error, field: one(sp.field) || null, gym: gymSlug };
   const [session, gym] = await Promise.all([currentUser(), gymSlug ? getGymCard(gymSlug) : Promise.resolve(null)]);
@@ -26,7 +25,8 @@ export async function resolveClaimState(sp: Params): Promise<ClaimState> {
   const [claims, submissions] = await Promise.all([listOwnClaims(session.client), listOwnSubmissions(session.client)]);
   const ids = [...new Set([...claims.map((c) => c.entity_id), ...submissions.map((s) => s.entity_id)].filter((id): id is string => !!id))];
   const gyms = await getGymCardsByIds(ids);
-  return { kind: "signed-in", user: session.user, gym, gymSlug, claims, submissions, gyms };
+  const editableGym = gym && claims.some(c => c.entity_id === gym.id && c.status === "verified") ? await getGym(gym.slug) : null;
+  return { kind: "signed-in", user: session.user, gym, gymSlug, claims, submissions, gyms, editableGym, saved: one(sp.saved) === "1", refreshDelayed: one(sp.refresh) === "delayed" };
 }
 
 export default async function Claim({ searchParams }: PageProps<"/claim">) {

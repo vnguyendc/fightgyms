@@ -161,6 +161,7 @@ export interface Fighter {
 }
 
 export interface GymDetail extends GymCard {
+  owner_updated_at?: string | null;
   description: string | null;
   phone: string | null;
   affiliation: string | null;

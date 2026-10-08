@@ -3,16 +3,16 @@ import { SITE, pageMetadata } from "@/lib/site";
 
 export async function generateMetadata() {
   return pageMetadata("/about", `About ${SITE.name}`,
-    `How ${SITE.name} lists Muay Thai and kickboxing gyms: where the data comes from, how prices are verified and dated, what is never shown, and how to correct a listing.`);
+    `How ${SITE.name} lists Muay Thai and kickboxing gyms: where the data comes from, how prices are verified and dated, what is never shown, and how gym representatives update a listing.`);
 }
 
 // Every claim here must match how the directory actually works. Do not describe features that are not shipped.
 const TIERS = [
   ["manually checked", "someone on the directory checked the fact against the gym directly"],
   ["verified by phone", "the gym confirmed it by phone"],
-  ["confirmed by gym", "the gym confirmed it through a verified claim"],
+  ["owner-supplied", "published by a verified gym representative; these facts are not independently checked"],
   ["from gym website", "read from a page on the gym’s own website, with the date it was read"],
-  ["reported by a member", "sent in through the correction box and reviewed before it appears"],
+  ["reported by a member", "a historical member report reviewed before publication; public correction requests are now retired"],
 ] as const;
 
 export default async function About() {
@@ -39,8 +39,7 @@ export default async function About() {
         ))}
       </ul>
       <p className="mt-3 text-muted">
-        Prices are kept as a history rather than overwritten, so a listing always shows the most recent verified amount and its date. Directory
-        pages refresh about once an hour after data changes.
+        Prices are kept as a history rather than overwritten, so a listing always shows the most recent verified amount and its date. Owner edits publish immediately and refresh directory pages on their next visit. Other data updates refresh about once an hour.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">What is never shown</h2>
@@ -50,11 +49,11 @@ export default async function About() {
         <li>Guessed prices, schedules or hours.</li>
       </ul>
 
-      <h2 className="mt-10 text-xl font-semibold">Corrections</h2>
+      <h2 className="mt-10 text-xl font-semibold">Owner updates</h2>
       <p className="mt-2 text-muted">
-        Every gym page has a correction box. Submissions are reviewed by a person before anything changes; nothing is published automatically.
-        There is no public inbox yet, so the correction box is the way to reach us about a listing. Gym owners will be able to claim and update
-        their own listing when claims launch.
+        Gym representatives can <Link href="/claim" className="underline">sign in and claim their gym</Link>. Claims are checked by hand.
+        Once verified, representatives can edit listing details and prices, which publish immediately with a retained change history.
+        These are owner-supplied facts, not independently checked. New gym submissions still need review before listing.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">Coverage</h2>

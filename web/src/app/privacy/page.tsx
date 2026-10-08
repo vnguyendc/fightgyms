@@ -6,7 +6,7 @@ export async function generateMetadata() {
     `What ${SITE.name} records about visitors, accounts, gym claims and submissions, and how it is used.`);
 }
 
-// Keep this in step with the correction form, the analytics mounted in the root layout, and the server error logging.
+// Keep this in step with owner editing and submissions, the analytics mounted in the root layout, and the server error logging.
 export default async function Privacy() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -19,13 +19,15 @@ export default async function Privacy() {
         sent to your email, without a password. Cookies in your browser keep you signed in and connect your claims and submissions to your account.
       </p>
 
-      <h2 className="mt-10 text-xl font-semibold">Listing corrections</h2>
+      <h2 className="mt-10 text-xl font-semibold">Owner edits and historical submissions</h2>
       <p className="mt-2 text-muted">
-        When you send a correction from a gym page, we store the gym, the field you are reporting, the value you entered, your note, and your
-        submission time and review status. If you are signed out, a contact email is optional. If you are signed in, we store your account ID
-        and verified account email, even if you leave the email field blank or enter a different address. We use the email to follow up on
-        the correction and the account to show your submission status and identify corrections from verified gym representatives.
-        Corrections are reviewed by hand before listing details change. Your note, email and account ID are not published.
+        When a verified gym representative publishes an edit, we retain the before and after values, account ID, gym, verified claim,
+        source record and time in a private audit history. The updated listing details and owner-supplied prices are public; your account
+        ID and claim details are not. Owner-supplied facts are not independently checked.
+      </p>
+      <p className="mt-2 text-muted">
+        Public correction requests are retired. Historical submissions retain the submitted values, note, contact email, account ID when
+        signed in, time and review status. Notes, contact emails and account IDs are not published. You can still see your own submission history.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">Gym claims and new gym submissions</h2>
@@ -36,7 +38,7 @@ export default async function Privacy() {
         submission time and review status.
       </p>
       <p className="mt-2 text-muted">
-        Every claim and submission is reviewed by hand, and we may email you with a question. Approved gym details and a verified claim badge
+        Every claim and new gym submission is reviewed by hand, and we may email you with a question. Approved gym details and a verified claim badge
         may appear in the directory. Your email, account ID and notes are not published. You can see your own claims, submissions and their status when signed in.
       </p>
 
@@ -56,11 +58,11 @@ export default async function Privacy() {
       <h2 className="mt-10 text-xl font-semibold">Gym information</h2>
       <p className="mt-2 text-muted">
         Listings contain business information about gyms taken from public sources and the gym’s own website. If you represent a gym and want
-        a listing corrected or removed, use the correction box on the gym’s page. Read <Link href="/about" className="underline">how listings are built</Link> for the sourcing rules.
+        to update a listing, sign in and request a claim from the gym’s page. Editing becomes available after manual claim verification. Read <Link href="/about" className="underline">how listings are built</Link> for the sourcing rules.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">Hosting</h2>
-      <p className="mt-2 text-muted">The site is hosted on Vercel and its data and accounts are stored with Supabase. Both process requests on our behalf and do not receive the correction contents for any other purpose.</p>
+      <p className="mt-2 text-muted">The site is hosted on Vercel and its data and accounts are stored with Supabase. Both process requests on our behalf and do not receive account, edit or submission contents for any other purpose.</p>
     </div>
   );
 }

@@ -1,18 +1,18 @@
 import Link from "next/link";
+import OwnerEditForm from "./OwnerEditForm";
 import type { SessionUser } from "@/lib/auth";
 import { CLAIM_ROLES, ROLE_LABEL, type ClaimRow, type SubmissionRow } from "@/lib/claims";
-import { FIELD_LABEL, NEW_GYM_ROLES, NEW_GYM_ROLE_LABEL, type SubmissionField } from "@/lib/submissions";
-import { STYLE_LABEL, type GymCard, type Style } from "@/lib/types";
+import { FIELD_LABEL, NEW_GYM_ROLES, NEW_GYM_ROLE_LABEL } from "@/lib/submissions";
+import { STYLE_LABEL, type GymCard, type GymDetail, type Style } from "@/lib/types";
 
 export type ClaimState =
   | { kind: "unavailable"; gym: string | null }
   | { kind: "sent"; gym: string | null }
   | { kind: "claimed"; gym: string | null }
   | { kind: "submitted-gym" }
-  | { kind: "submitted"; gym: string | null }
   | { kind: "error"; code: string; field: string | null; gym: string | null }
   | { kind: "signed-out"; gym: GymCard | null; gymSlug: string | null; notice: string | null }
-  | { kind: "signed-in"; user: SessionUser; gym: GymCard | null; gymSlug: string | null; claims: ClaimRow[]; submissions: SubmissionRow[]; gyms: GymCard[] };
+  | { kind: "signed-in"; user: SessionUser; gym: GymCard | null; gymSlug: string | null; claims: ClaimRow[]; submissions: SubmissionRow[]; gyms: GymCard[]; editableGym?: GymDetail | null; saved?: boolean; refreshDelayed?: boolean };
 
 const NOTICE: Record<string, string> = {
   signin: "Sign in first to claim this gym. Enter your email and we will send a link.",
@@ -22,8 +22,6 @@ const NOTICE: Record<string, string> = {
 };
 const ERRORS: Record<string, string> = {
   notfound: "That gym is not listed, so nothing could be filed.",
-  field: "Pick what you are reporting and try again.",
-  value: "Check the value: prices are dollar amounts between $1 and $1,000, websites need a full https address, and notes are limited to 1,000 characters.",
   claim: "The claim could not be saved. Please try again.",
 };
 const FIELD_ERRORS: Record<string, string> = {
@@ -64,7 +62,7 @@ function SignedOut({ gym, gymSlug, notice }: Extract<ClaimState, { kind: "signed
     <div className="mx-auto max-w-xl px-4 py-10">
       <h1 className="text-3xl font-semibold tracking-tight">{gym ? `Claim ${gym.name}` : "Gym updates"}</h1>
       {notice && <p className="mt-3 rounded-md border border-accent/60 px-3 py-2 text-sm text-accent">{NOTICE[notice]}</p>}
-      <p className="text-muted mt-3">Claiming is free. Once we verify you, the listing shows a &quot;✓ claimed&quot; badge and your corrections are marked as confirmed by the gym.</p>
+      <p className="text-muted mt-3">Claiming is free. Once we verify you, the listing shows a &quot;✓ claimed&quot; badge and you can edit your listing directly. Owner-supplied facts are not independently checked.</p>
       <form action="/api/auth/link" method="post" className="mt-6 space-y-3">
         {gymSlug && <input type="hidden" name="gym" value={gymSlug} />}
         <Honeypot />
@@ -80,7 +78,7 @@ function SignedOut({ gym, gymSlug, notice }: Extract<ClaimState, { kind: "signed
   );
 }
 
-function SignedIn({ user, gym, claims, submissions, gyms }: Extract<ClaimState, { kind: "signed-in" }>) {
+function SignedIn({ user, gym, claims, submissions, gyms, editableGym, saved, refreshDelayed }: Extract<ClaimState, { kind: "signed-in" }>) {
   const card = (id: string | null) => gyms.find((g) => g.id === id);
   const name = (id: string | null) => card(id)?.name ?? "Unlisted gym";
   // A rejected claim is closed: the unique index lets the owner file again, so only pending/verified hides the form.
@@ -121,6 +119,8 @@ function SignedIn({ user, gym, claims, submissions, gyms }: Extract<ClaimState, 
         </form>
       )}
 
+      {gym && mine?.status === "verified" && editableGym?.id === gym.id && <OwnerEditForm gym={editableGym} saved={saved} refreshDelayed={refreshDelayed} />}
+
       <section className="mt-10">
         <h2 className="text-xl font-semibold">Your claims</h2>
         {claims.length === 0 ? <p className="mt-2 text-sm text-muted">No claims yet. Open a gym page and choose &quot;Claim this gym&quot;.</p> : (
@@ -129,7 +129,7 @@ function SignedIn({ user, gym, claims, submissions, gyms }: Extract<ClaimState, 
               const g = card(c.entity_id);
               return (
                 <li key={c.id} className="flex justify-between gap-3">
-                  <span>{g ? <Link href={`/gym/${g.slug}`} className="underline">{g.name}</Link> : name(c.entity_id)}</span>
+                  <span>{g ? <Link href={`/gym/${g.slug}`} className="underline">{g.name}</Link> : name(c.entity_id)}{g && c.status === "verified" && <> · <Link href={`/claim?gym=${g.slug}#edit`} className="underline">Edit listing</Link></>}</span>
                   <span className="text-muted whitespace-nowrap">{STATUS[c.status] ?? c.status} · {when(c.created_at)}</span>
                 </li>
               );
@@ -144,7 +144,7 @@ function SignedIn({ user, gym, claims, submissions, gyms }: Extract<ClaimState, 
           <ul className="mt-2 space-y-1.5 text-sm">
             {submissions.map((s) => (
               <li key={s.id} className="flex justify-between gap-3">
-                <span>{s.field === "new_gym" ? `New gym: ${String(s.proposed_value?.name ?? "")}` : `${FIELD_LABEL[s.field as SubmissionField] ?? s.field} · ${name(s.entity_id)}`}</span>
+                <span>{s.field === "new_gym" ? `New gym: ${String(s.proposed_value?.name ?? "")}` : `${FIELD_LABEL[s.field] ?? s.field} · ${name(s.entity_id)}`}</span>
                 <span className="text-muted whitespace-nowrap">{STATUS[s.status] ?? s.status} · {when(s.created_at)}</span>
               </li>
             ))}
@@ -184,7 +184,7 @@ function SignedIn({ user, gym, claims, submissions, gyms }: Extract<ClaimState, 
         </form>
       </section>
 
-      <p className="mt-10 text-xs text-muted">Every claim and submission is checked by hand before anything changes on the site.</p>
+      <p className="mt-10 text-xs text-muted">Every claim and new gym submission is checked by hand. Verified claimants can publish listing edits immediately; owner-supplied facts are not independently checked.</p>
     </div>
   );
 }
@@ -192,15 +192,13 @@ function SignedIn({ user, gym, claims, submissions, gyms }: Extract<ClaimState, 
 export default function ClaimView({ state }: { state: ClaimState }) {
   switch (state.kind) {
     case "unavailable":
-      return <Panel title="Gym claims" gym={state.gym}>Gym claims are not available yet. To correct a listing, use the correction box on the gym&apos;s page. No information is collected on this page.</Panel>;
+      return <Panel title="Gym claims" gym={state.gym}>Gym claims and owner editing are not available yet in this environment. No information is collected on this page.</Panel>;
     case "sent":
       return <Panel title="Check your email" gym={state.gym}>We sent a sign-in link. It expires in an hour, and you can request one per minute. Opening it on your phone works too.</Panel>;
     case "claimed":
-      return <Panel title="Claim received" gym={state.gym}>We check every claim by hand. Once verified, the listing shows the &quot;✓ claimed&quot; badge and your corrections are marked as confirmed by the gym.</Panel>;
+      return <Panel title="Claim received" gym={state.gym}>We check every claim by hand. Once verified, the listing shows the &quot;✓ claimed&quot; badge and you can edit your listing directly. Owner-supplied facts are not independently checked.</Panel>;
     case "submitted-gym":
       return <Panel title="Gym received" gym={null}>Thanks. We review every submission before a gym is listed, and we may email you with a question.</Panel>;
-    case "submitted":
-      return <Panel title="Thanks for the correction" gym={state.gym}>We review every submission before anything is published. The listing does not change until it has been checked.</Panel>;
     case "error":
       if (state.code === "gym") {
         return (

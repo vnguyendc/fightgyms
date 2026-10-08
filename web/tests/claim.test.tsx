@@ -29,7 +29,7 @@ test("query states win, and outside a request scope the page is signed out", asy
     assert.deepEqual(await page.resolveClaimState({ sent: "1", gym: "test-gym" }), { kind: "sent", gym: "test-gym" });
     assert.deepEqual(await page.resolveClaimState({ claimed: "1", gym: "../x" }), { kind: "claimed", gym: null });
     assert.deepEqual(await page.resolveClaimState({ submitted: "gym" }), { kind: "submitted-gym" });
-    assert.deepEqual(await page.resolveClaimState({ submitted: "1", gym: "test-gym" }), { kind: "submitted", gym: "test-gym" });
+    assert.equal((await page.resolveClaimState({ submitted: "1", gym: "test-gym" })).kind, "signed-out", "old correction query does not claim success");
     assert.deepEqual(await page.resolveClaimState({ error: "gym", field: "state" }), { kind: "error", code: "gym", field: "state", gym: null });
     assert.deepEqual(await page.resolveClaimState({ error: "claim", gym: "test-gym" }), { kind: "error", code: "claim", field: null, gym: "test-gym" });
     const signin = await page.resolveClaimState({ error: "signin", gym: "test-gym" });
@@ -97,10 +97,8 @@ test("one-off panels carry the right copy and a back link", () => {
   assert.match(render({ kind: "sent", gym: "test-gym" }), /Check your email[\s\S]*expires in an hour[\s\S]*href="\/gym\/test-gym"/);
   assert.match(render({ kind: "claimed", gym: "test-gym" }), /Claim received[\s\S]*by hand/);
   assert.match(render({ kind: "submitted-gym" }), /Gym received/);
-  assert.match(render({ kind: "submitted", gym: null }), /Thanks for the correction/);
   assert.match(render({ kind: "error", code: "gym", field: "state", gym: null }), /two-letter state code[\s\S]*href="\/claim#submit"/);
   assert.match(render({ kind: "error", code: "claim", field: null, gym: "test-gym" }), /could not be saved/);
-  assert.match(render({ kind: "error", code: "value", field: null, gym: null }), /dollar amounts/);
   assert.match(render({ kind: "error", code: "zzz", field: null, gym: null }), /Something went wrong/);
   assert.match(render({ kind: "unavailable", gym: null }), /not available yet/);
 });

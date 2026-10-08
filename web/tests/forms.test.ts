@@ -3,6 +3,8 @@ import { test } from "node:test";
 import { MAX_BODY, readBody } from "../src/lib/forms";
 import { goLive, unconfigured } from "./session";
 
+process.env.NEXT_PUBLIC_SITE_URL = "https://www.findfightgyms.com";
+
 function streamed(chunks: string[], headers: Record<string, string> = {}, path = "/api/auth/link") {
   let reads = 0, cancelled = false;
   const stream = new ReadableStream<Uint8Array>({
@@ -69,12 +71,12 @@ test("every body-consuming route returns 413 for oversized streamed bodies befor
     const routes = [
       ["/api/auth/link", await import("../src/app/api/auth/link/route")],
       ["/api/claims", await import("../src/app/api/claims/route")],
-      ["/api/submissions", await import("../src/app/api/submissions/route")],
+      ["/api/owner-edit", await import("../src/app/api/owner-edit/route")],
       ["/api/submissions/gym", await import("../src/app/api/submissions/gym/route")],
     ] as const;
     for (const [path, route] of routes) {
       for (const headers of [{}, { "content-length": "1" }] as Record<string, string>[]) {
-        const input = streamed(["x=" + "a".repeat(MAX_BODY - 2), "b", "unread tail"], headers, path);
+        const input = streamed(["x=" + "a".repeat(MAX_BODY - 2), "b", "unread tail"], { ...headers, origin: "http://localhost:3000" }, path);
         assert.equal((await route.POST(input.request)).status, 413, path);
         assert.equal(input.cancelled(), true, path);
       }

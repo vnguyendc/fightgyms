@@ -5,7 +5,7 @@ real prices, real schedules, and which gyms actually produce fighters.
 
 ```
 web/        next.js 16 app router, tailwind v4, supabase-js. ISR pages for pSEO.
-supabase/   migrations/ (0001 schema, RLS, views; 0002 photos + storage bucket; 0003 gym_cards v3; 0004 submissions policy; 0005 claims; 0006 social links) + seed.sql (fictional demo gyms)
+supabase/   migrations/ (0001 schema, RLS, views; 0002 photos + storage bucket; 0003 gym_cards v3; 0004 submissions policy; 0005 claims; 0006 social links; 0007 owner edits and correction retirement) + seed.sql (fictional demo gyms)
 scrapers/   python: google places seed, LLM site extraction, website photos + social links. see scrapers/README.md
 ```
 
@@ -21,7 +21,7 @@ See [application architecture](docs/architecture.md) for the component and data-
 
 ## wire supabase
 
-1. create a project, run `supabase/migrations/*.sql` in order — no psql needed: `cd scrapers && python run_sql.py ../supabase/migrations/0001_init.sql` (then `0002_photos.sql` through `0006_socials.sql`, in order)
+1. create a project, run `supabase/migrations/*.sql` in order — no psql needed: `cd scrapers && python run_sql.py ../supabase/migrations/0001_init.sql` (then `0002_photos.sql` through `0007_owner_edits.sql`, in order)
 2. optionally `supabase/seed.sql` for the demo rows (they're flagged `is_sample` and hidden in prod)
 3. configure `NEXT_PUBLIC_SITE_URL=https://www.findfightgyms.com` (production canonical host), `NEXT_PUBLIC_SUPABASE_URL`, and the public `NEXT_PUBLIC_SUPABASE_ANON_KEY` in Vercel or a gitignored `web/.env.local`; never expose a service-role key
 4. `scrapers/.env` needs `DATABASE_URL` (use the **session pooler**, the direct host is IPv6-only), `GOOGLE_PLACES_KEY`, `ANTHROPIC_API_KEY` — see `scrapers/README.md`
@@ -39,7 +39,7 @@ local `next build` caches supabase responses in `.next/cache/fetch-cache` across
 | `/gyms/[state]/[city]/[style]` | discipline filter (muay-thai, kickboxing; others gated by `LIVE_STYLES`) |
 | `/gym/[slug]` | profile: photos, prices w/ verification tier, schedule, coaches, fight team, social links, JSON-LD |
 | `/events` | upcoming cards |
-| `/claim` | magic-link sign-in, pending gym claims, and new-gym submissions (requires Supabase email/SMTP setup); gym-page corrections submit pending rows |
+| `/claim` | magic-link sign-in, pending gym claims, and new-gym submissions (requires Supabase email/SMTP setup); verified claimants edit listing details and prices immediately; public corrections are retired |
 | `/sitemap.xml`, `/robots.txt` | generated |
 
 ## Jev shadow-triage pilot
