@@ -1,6 +1,6 @@
 # SEO index gate, sitemap lastmod, and weekly search monitor
 
-Revision: v3 (approved 2026-11-01: trial alone does not qualify)
+Revision: v4 (2026-11-01 clarification: free trials qualify)
 Status: Approved (G1) by Vinh 2026-11-01, including production migrations 0007/0008 and local weekly monitor installation
 Project / repository: fightgyms (github.com/vnguyendc/fightgyms)
 Strategy: vault `SEO Reports/FightGyms SEO Strategy 2026-10-29.md` and `... Implementation Roadmap 2026-10-29.md`, Phase 1
@@ -28,7 +28,7 @@ The approved scope is one PR plus the explicitly authorized production schema up
 flowchart LR
   subgraph Gate["Index gate (new, per request)"]
     P[Page request] --> Q{Page type}
-    Q -- gym --> G{paid price,<br/>schedule or claimed?}
+    Q -- gym --> G{paid price, free trial,<br/>schedule or claimed?}
     Q -- city --> C{2+ live gyms<br/>or a priced gym?}
     Q -- discipline --> D{distinct subset AND<br/>2+ gyms or priced?}
     G & C & D -- yes --> I["index, follow<br/>+ sitemap with lastmod"]
@@ -58,17 +58,17 @@ Caption: today every page is `index, follow` and in the sitemap. After the chang
   | City: 2+ live gyms or a gym with a paid price (recommended) | 57 | 156 |
   | City: 2+ live gyms or any price including trial | 91 | 156 |
 
-  Expected sitemap after the gate: roughly 132 gyms + 57 cities + distinct discipline pages + home, `/gyms`, `/gyms/all` pages, about 210–230 URLs with D1 (exact count measured at verification).
+  Expected sitemap after the gate: roughly 161 gyms + 57 cities + distinct discipline pages + home, `/gyms`, `/gyms/all` pages, about 245–265 URLs with D1 (exact count measured at verification).
 - Monitor research: `vercel metrics vercel.analytics_pageview.count --project fightgyms --scope vinh-nguyens-projects-4454b12d` returns daily page views (verified: 415 since Sep 26, mostly Sep 27–28) and supports `--group-by referrer_hostname,request_path`; `vercel.speed_insights.lcp_ms` exists. The GA4 account visible to the service account has no findfightgyms property, so GA4 is out. Search Console works through the service account at `~/.config/claude-seo/service-account.json` (read-only scope); system `python3` has `googleapiclient`. An existing launchd job (`com.vinh.weekly-seo-report`, Anna Health) gives the pattern: shell plus Python, validated JSON bundle, `osascript` notification.
 - Assumptions: launchd runs as Vinh, so the Vercel CLI login and the service-account key are readable. A Vercel CLI token can expire; the monitor reports that as an alert and still writes the Search Console part.
 - Exclusions: cost guides, city comparison tables, claim badge, outreach, Bing setup, Manual Actions check, any UI change, Google Ads. GA4. Changing how pages render.
-- Decision D1 (Vinh, 2026-11-01): a free trial alone does not qualify a gym page. This supersedes the earlier trial-inclusive draft; expected 132 of 267 gym pages.
+- Decision D1 (Vinh, latest 2026-11-01 clarification): “Free trials count, as approved here.” A free trial alone qualifies a gym page. This supersedes the stricter rule in PR #16 and restores the original approved v2 behavior; current data verifies 161 of 267 gym pages.
 
 ## Requirements and acceptance criteria
 
 | ID | Requirement | Observable acceptance criterion |
 |---|---|---|
-| R1 | A gym page is indexable only if it has a paid monthly or drop-in price, at least one class row, or is claimed. | Unit tests cover each qualifying fact (trial-only fails) and a bare gym; on a production-mode build a bare gym page has `<meta name="robots" content="noindex, follow">`, a priced one `index, follow`; a trial-only one `noindex, follow`. |
+| R1 | A gym page is indexable only if it has a paid monthly or drop-in price, a free trial (`trial_cents === 0`), at least one class row, or is claimed. | Unit tests cover each qualifying fact (free-trial-only passes, missing/paid trial alone fails) and a bare gym; on a production-mode build a bare gym page has `<meta name="robots" content="noindex, follow">`, a priced or free-trial-only one `index, follow`. |
 | R2 | A city page is indexable only with 2+ live-style gyms or at least one gym with a paid price. | Unit tests; built single-gym unpriced city page shows `noindex, follow`. |
 | R3 | A discipline page is indexable only if it is already a distinct subset (existing rule) and its gyms pass the R2 test. | Unit tests; redirect behaviour for non-distinct pages unchanged. |
 | R4 | Non-indexable pages render exactly as before and keep `follow`. | Rendered HTML of a gated-out page differs from master only in the robots meta; links remain. |
@@ -87,7 +87,7 @@ Caption: today every page is `index, follow` and in the sitemap. After the chang
 
 Index gate, all in `web/src/lib/site.ts`:
 
-- `gymIndexable(g: GymCard)` and `listingIndexable(gyms: GymCard[])`, pure, next to `distinctStyleListing`. A free trial alone does not qualify (D1).
+- `gymIndexable(g: GymCard)` and `listingIndexable(gyms: GymCard[])`, pure, next to `distinctStyleListing`. A free trial alone qualifies (D1); a paid trial alone does not.
 - `pageMetadata(path, title, description, hasContent, indexable = true)`: robots becomes `{ index: policy && hasContent && indexable, follow: policy && hasContent }`, so gated pages keep `follow` while unavailable/demo pages stay `noindex, nofollow`.
 - Routes pass the flag: gym `generateMetadata` already has the card; city and discipline routes already load their gyms.
 - `directorySitemap` filters with the same functions and sets `lastModified`.
@@ -147,3 +147,19 @@ Vinh approved 2026-11-01: “Approved. Apply 0007 and 0008, set up the weekly mo
 - Monitor end-to-end PASS: launchd-triggered collection finished with exit 0; all 12 source groups available, all 30 URL inspections returned, no configured alert fired. Bundle: `~/.local/share/fightgyms/seo-monitor/2026-11-01T183007065386Z/bundle.json`; vault report `SEO Reports/FightGyms SEO Weekly 2026-11-01.md` exists with the Mermaid chart and measured summaries. Vercel 28-day production apex/www: 102 page views; LCP p75 1004 ms. Notifications command completed successfully (onscreen notification display not independently observed). Search Console through Oct 29: report contains finalized daily data and seven-day comparisons. Unchanged alert sets stay quiet on later runs.
 - Requirement-based verification R1–R14 passed for the local/runtime/ops scope, with no separate reviewer agent. The notification's actual onscreen display and fresh-session skill-menu discovery are not independently observed; the command, skill file, and documented on-demand execution are verified. PR preview verification remains delivery-stage work.
 - PR delivery: https://github.com/vnguyendc/fightgyms/pull/16 targets master. Required checks: web and Vercel; scraper offline-tests also runs. Application behavior was verified at a5071d7; the follow-up documentation-only correction changes the source-group count from 13 to 12 and adds this delivery record, so its runtime evidence remains applicable. The weekly note's GUI opening via cmux was blocked because this Codex process was not launched inside cmux; report contents/chart syntax were verified, actual GUI rendering remains unobserved. The unrelated pre-existing traffic-growth-program plan remains untracked and excluded from this PR. No merge or application production deploy is authorized or performed.
+
+## v4 correction · approved 2026-11-01
+
+Latest direct user response in “Index gate traffic impact”: “Free trials count, as approved here.” This is correction within the original approved v2 / traffic-growth program scope, authorizing implementation, verification and a PR to master; merge and production release are separate. The historical v3 evidence above describes PR #16 and is not v4 verification.
+
+Problem: PR #16 merged the stricter rule before this clarification arrived. Restore the originally approved free-trial gym rule without editing the active deployment worktree. Workspace: existing `fightgyms-phone-prices` checkout, new branch `codex/free-trial-index-gate` from current `origin/master`; phone-price PR #15 remains separate.
+
+Requirements: R1 accepts `trial_cents === 0` while null and positive trial-only values fail; R2/R3 city and discipline rules stay unchanged; R5 sitemap and gym metadata use the same restored rule; R8 preview/demo/unconfigured builds still forbid indexing. No schema, visible UI, pricing or monitor change.
+
+Task breakdown: (1) restore free-trial regression cases, observe failure on strict master; (2) add the zero-trial predicate; (3) full web/Python checks plus live-data local production HTTP checks for free-trial/bare/paid gyms and sitemap membership; (4) self-review, requirement verification, correction PR and candidate-matched CI/preview check. Wiki milestones update the same existing project and roadmap notes, explicitly superseding the stricter decision.
+
+V4 current-data read-only preflight (Nov 1): 267 public live-style gyms; 29 have a $0 trial and no other qualifying fact. Thus the corrected rule is expected to pass 161 gyms, rather than the historical estimate of 167 (that estimate also counted paid trials). The exact rendered sitemap is verified below. Full local checks: 115 web tests, 94 Python tests, typecheck, lint, unconfigured build and HTTP smoke checks passed. Regression tests first failed on strict master; restored predicate passes. No separate reviewer used; self-review found no unresolved P0/P1 or P2/P3 findings. No visible UI change.
+
+V4 behavioral verification passed against live public directory data in a local production build: all 29 free-trial-only gyms return HTTP 200 with `index, follow` and remain linked. Bare Octane MMA remains `noindex, follow`; Lombard MMA remains indexable. Stafford/Damascus city directives remain unchanged. Independently computed sitemap paths match all directory entries: 253 total URLs, 235 lastmod entries, 161/267 gym pages. Local data reads only; no production price/schema/config changes. New regression cases verify preview noindex and empty sitemap, missing/positive-trial exclusions, free-trial lastmod and unchanged single-gym city gating.
+
+Self-review and verifier roles completed on the same candidate with no separate reviewer; no unresolved findings. This correction is PR-only and is not live until merged and released. CI and hosted preview evidence is recorded on the correction PR.
