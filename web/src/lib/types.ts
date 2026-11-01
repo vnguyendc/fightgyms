@@ -115,6 +115,8 @@ export interface GymCard {
   trial_cents: number | null;
   /** rows in `classes`; 0 means no schedule listed */
   class_count: number;
+  /** latest verified price, schedule or owner edit date; absent before migration 0008 */
+  last_verified_at?: string | null;
   active_fighters: number;
   pro_fighters: number;
   photo_path: string | null;

@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - 'scrapers/**'
+      - 'ops/seo-monitor/**'
       - '.github/workflows/scraper-tests.yml'
   push:
     branches: [master, feat/jev-shadow-triage]
     paths:
       - 'scrapers/**'
+      - 'ops/seo-monitor/**'
       - '.github/workflows/scraper-tests.yml'
 
 permissions:

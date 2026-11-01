@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import CityPage from "@/components/CityPage";
 import { getAllGyms, getGymsByPlace, getPlace, getPlaces } from "@/lib/data";
 import { nearbyOrNearest, placeCounts } from "@/lib/geo";
-import { cityPath, pageMetadata } from "@/lib/site";
+import { cityPath, listingIndexable, pageMetadata } from "@/lib/site";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: PageProps<"/gyms/[state]/[cit
   const gyms = await getGymsByPlace(place.slug);
   if (!gyms.length) notFound();
   return pageMetadata(cityPath(place), `Muay Thai & Kickboxing Gyms in ${place.city}, ${place.state}`,
-    `Browse ${gyms.length} listed Muay Thai and kickboxing gym${gyms.length === 1 ? "" : "s"} in ${place.city}, ${place.state}. Find locations, gym websites and available training details.`);
+    `Browse ${gyms.length} listed Muay Thai and kickboxing gym${gyms.length === 1 ? "" : "s"} in ${place.city}, ${place.state}. Find locations, gym websites and available training details.`, true, listingIndexable(gyms));
 }
 
 export default async function Page({ params }: PageProps<"/gyms/[state]/[city]">) {
