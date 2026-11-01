@@ -56,26 +56,43 @@ export function distinctStyles(local: Pick<GymCard, "styles">[]): Style[] {
   return LIVE_STYLES.filter(style => distinctStyleListing(local, style));
 }
 
+export function gymIndexable(gym: GymCard): boolean {
+  return paidPrice(gym) || gym.class_count > 0 || gym.claimed;
+}
+
+function paidPrice(gym: GymCard): boolean {
+  return (gym.monthly_cents ?? 0) > 0 || (gym.drop_in_cents ?? 0) > 0;
+}
+
+export function listingIndexable(gyms: GymCard[]): boolean {
+  return gyms.length >= 2 || gyms.some(paidPrice);
+}
+
+function lastVerified(gyms: GymCard[]): string | undefined {
+  return gyms.map(g => g.last_verified_at).filter((date): date is string =>
+    !!date && /^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date)))
+    .sort().at(-1);
+}
+
 export function directorySitemap(places: Place[], gyms: GymCard[], indexable: boolean, hasEvents: boolean): MetadataRoute.Sitemap {
   if (!indexable) return [];
   const publicGyms = gyms.filter((g) => g.is_sample === false && !g.slug.startsWith("sample-") && g.styles.some(s => LIVE_STYLES.includes(s)));
   const populatedPlaces = places.filter(p => publicGyms.some(g => g.place_slug === p.slug));
-  const paths = new Set<string>();
-  if (publicGyms.length) paths.add("");
-  if (populatedPlaces.length) paths.add("/gyms");
-  if (publicGyms.length) for (let page = 1; page <= pageCount(publicGyms.length); page++) paths.add(allGymsPath(page));
+  const paths = new Map<string, string | undefined>();
+  if (publicGyms.length) paths.set("", undefined);
+  if (populatedPlaces.length) paths.set("/gyms", undefined);
+  if (publicGyms.length) for (let page = 1; page <= pageCount(publicGyms.length); page++) paths.set(allGymsPath(page), undefined);
   for (const place of populatedPlaces) {
     const local = publicGyms.filter(g => g.place_slug === place.slug);
-    if (!local.length) continue;
-    paths.add(cityPath(place));
+    if (listingIndexable(local)) paths.set(cityPath(place), lastVerified(local));
     for (const style of LIVE_STYLES) {
-      if (distinctStyleListing(local, style)) paths.add(cityPath(place, style));
+      const matching = local.filter(g => g.styles.includes(style));
+      if (distinctStyleListing(local, style) && listingIndexable(matching)) paths.set(cityPath(place, style), lastVerified(matching));
     }
   }
-  for (const gym of publicGyms) paths.add(`/gym/${gym.slug}`);
-  if (hasEvents) paths.add("/events");
-  // No fabricated lastModified timestamp: the view does not expose one.
-  return [...paths].map(path => ({ url: `${SITE.url}${path}` }));
+  for (const gym of publicGyms) if (gymIndexable(gym)) paths.set(`/gym/${gym.slug}`, lastVerified([gym]));
+  if (hasEvents) paths.set("/events", undefined);
+  return [...paths].map(([path, lastModified]) => ({ url: `${SITE.url}${path}`, ...(lastModified ? { lastModified } : {}) }));
 }
 
 export function safeExternalUrl(value: string | null | undefined): string | undefined {
@@ -86,12 +103,13 @@ export function safeExternalUrl(value: string | null | undefined): string | unde
   } catch { return undefined; }
 }
 
-export function pageMetadata(path: string, title: string, description: string, hasContent = true): Metadata {
-  const index = runtimePolicy().indexable && hasContent;
+export function pageMetadata(path: string, title: string, description: string, hasContent = true, indexable = true): Metadata {
+  const follow = runtimePolicy().indexable && hasContent;
+  const index = follow && indexable;
   const url = `${SITE.url}${path === "/" ? "" : path}`;
   return { title, description, alternates: { canonical: url },
     openGraph: { title, description, url, siteName: SITE.name, type: "website" },
-    robots: { index, follow: index } };
+    robots: { index, follow } };
 }
 
 /** Next already adds `noindex` to not-found pages; emitting an explicit index directive as well leaves two conflicting tags. */

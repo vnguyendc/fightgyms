@@ -147,3 +147,11 @@ Review, as postgres in the SQL editor:
 - Stop a discovery schedule through Hermes cron controls. Keep queued evidence for audit; do not delete published rows as a rollback shortcut.
 
 References: [Google scaled-content policy](https://developers.google.com/search/docs/essentials/spam-policies), [Places API policies](https://developers.google.com/maps/documentation/places/web-service/policies).
+
+## search recovery
+
+The index gate keeps thin pages reachable (`noindex, follow`) while excluding them from the production sitemap. A gym qualifies through a paid monthly/drop-in price, schedule rows or a verified claim; city/discipline listings require 2+ gyms or a paid price. Discipline redirects remain unchanged. Preview/demo/unconfigured builds remain noindex.
+
+Migration `0008_gym_cards_last_verified.sql` follows 0007 and adds only `gym_cards.last_verified_at`, preserving existing columns and grants. The app tolerates the column being absent (no fabricated `lastmod`). Apply 0008 to production only with separate approval. Verify the column and dates before checking `<lastmod>` in the live sitemap; don't substitute the deploy date.
+
+Run or install the read-only weekly monitor using `ops/seo-monitor/README.md`. Before shipping the gate, check Search Console Manual Actions and Page indexing. After the authorized production release, resubmit the sitemap and request indexing for the best DMV cities; neither action is performed by the collector. Recovery is a hypothesis measured over weeks, not a guaranteed traffic increase.

@@ -6,7 +6,7 @@ import { GymPhoto } from "@/components/GymPhoto";
 import { getAllGyms, getGym, getPlace } from "@/lib/data";
 import { DOW, fmtTime, fullAddress, miles, money, photoUrl } from "@/lib/format";
 import { nearestGyms } from "@/lib/geo";
-import { SITE, breadcrumbJsonLd, cityPath, distinctStyleListing, jsonLd as serializeJsonLd, pageMetadata, runtimePolicy, safeExternalUrl } from "@/lib/site";
+import { SITE, breadcrumbJsonLd, cityPath, distinctStyleListing, jsonLd as serializeJsonLd, gymIndexable, pageMetadata, runtimePolicy, safeExternalUrl } from "@/lib/site";
 import { LIVE_STYLES, SOCIAL_LABEL, STYLE_LABEL, TAG_LABEL, type Price } from "@/lib/types";
 
 export const revalidate = 3600;
@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: PageProps<"/gym/[slug]">): Pr
   const location = [g.city, g.state].filter(Boolean).join(", ");
   const disciplines = g.styles.filter(s => LIVE_STYLES.includes(s)).map(s => STYLE_LABEL[s]).join(" and ");
   const meta = pageMetadata(`/gym/${g.slug}`, `${g.name}${location ? ` — ${location}` : ""}`,
-    `${g.name}${location ? ` in ${location}` : ""}. Listed disciplines: ${disciplines}. View available gym details and confirm current classes and prices directly with the gym.`, !g.is_sample);
+    `${g.name}${location ? ` in ${location}` : ""}. Listed disciplines: ${disciplines}. View available gym details and confirm current classes and prices directly with the gym.`, !g.is_sample, gymIndexable(g));
   const photo = g.photos[0];
   if (!photo) return meta;
   const image = { url: new URL(photoUrl(photo.storage_path), SITE.url).href, width: photo.width ?? undefined, height: photo.height ?? undefined, alt: photo.alt ?? g.name };
