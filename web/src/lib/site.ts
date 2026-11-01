@@ -57,7 +57,7 @@ export function distinctStyles(local: Pick<GymCard, "styles">[]): Style[] {
 }
 
 export function gymIndexable(gym: GymCard): boolean {
-  return paidPrice(gym) || gym.class_count > 0 || gym.claimed;
+  return paidPrice(gym) || gym.trial_cents === 0 || gym.class_count > 0 || gym.claimed;
 }
 
 function paidPrice(gym: GymCard): boolean {
