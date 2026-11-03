@@ -88,7 +88,7 @@ Haiku 4.5 model uses $1/$5 per million input/output tokens, verified against
 rate update. No cache, batch, server tool or regional pricing is requested.
 The count-token API rejects overly large inputs; the ledger reserves the full
 200k-token context bound of this pinned model plus the full output limit before
-each request (at least $0.24096). Unknown outcomes
+each request (at least $0.28). Unknown outcomes
 retain that reservation; automatic SDK retries are disabled. A returned usage
 above the reservation stops the paid run. This is a conservative operational cap,
 not an external billing-account spending limit. `usage.json` includes all calls
@@ -140,7 +140,7 @@ command. Dates, timezone and recurrence must not be inferred from business hours
 
 Limits: 12 HTML pages, 30 network attempts including robots/redirects, 180 seconds
 per gym, 20 seconds/request, 5 redirect hops, 10 MB/response, 5 relevant linked
-assets, 200k text characters per gym, 70k model input tokens, 8192 output tokens.
+assets, 200k text characters per gym, 70k model input tokens, 16000 output tokens.
 The local HTTP fetcher checks public DNS answers before each hop, pins the
 validated public address at connection time while preserving Host/TLS SNI and
 certificate verification, disables cross-host connection reuse and environment
@@ -148,3 +148,27 @@ proxies. It is not a public arbitrary-URL service and should not be deployed as 
 Robots denial, missing content, timeouts, clipping, unsupported widgets and model
 errors are reported separately from successful empty extraction. A coverage flag
 never proves that pricing is unpublished.
+
+
+### OpenRouter with the same $10 run ledger
+
+Use `--provider openrouter --extract --budget-usd 10` with
+`OPENROUTER_API_KEY` in the process environment. Do not copy a key into source,
+command arguments, reports or chat. Keep the same run directory across provider
+changes so previous spending and reservations count toward the same ceiling.
+
+The adapter uses `anthropic/claude-haiku-4.5`, restricts routing to Anthropic,
+disables fallbacks, sets maximum prompt/completion prices ($1/$5 per million),
+and checks the live model catalog before extraction. Images use data URLs and
+PDFs explicitly use native file processing, avoiding separately billed OCR.
+Usage includes actual OpenRouter `cost`; absent/invalid cost stops the run while
+retaining its pessimistic reservation. Native PDF/vision facts still require
+visual review. No private email bodies or mailbox attachments enter this API.
+
+Up to `--workers` requests can run concurrently, sharing a locked persistent
+budget. Every call reserves the complete 200k model input context plus 16k output
+tokens ($0.48 for OpenRouter, including the maximum reviewed input-cache rate;
+$0.28 direct Anthropic). Failed/unknown outcomes retain their reservation.
+Cache identity includes provider, model, prompt version and output bound. Review
+CSV rows retain uncertain fields as unknown and hold unsupported branch/time/date
+or source relationships; candidate rows do not authorize production updates.

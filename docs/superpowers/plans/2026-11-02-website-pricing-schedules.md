@@ -135,3 +135,36 @@ Verifier reassessment (same assistant, no separate reviewer):
 | R11 | No DB adapter import/apply path; real no-DB CLI test and collection run; legacy suites pass | pass locally |
 
 Current stage: verifier blocked on external authentication. Do not deliver a verified/ready PR until the pilot and remaining approved run can be extracted and checked. Next: user supplies a valid credential securely, resume the same run/budget, compare all pilot output with sources, fix/reverify affected behavior, complete remainder plus sampled review, then create PR to master. No new implementation approval is needed within this scope.
+
+
+## authorized provider adjustment — November 2
+
+Vinh explicitly instructed: "let's use our OPENROUTER_API_KEY" after the direct Anthropic authentication blocker. This authorizes the provider change within the same 102-gym/$10 review-only scope; no additional planning gate. Keep Haiku 4.5 via OpenRouter, restrict routing to Anthropic with no fallback, verify the live model context/pricing/capabilities, use native PDF input (no paid OCR plugin), and reconcile actual OpenRouter usage cost. Include provider/model/output limit in cache fingerprints and reserve the full model context plus the bounded output before every call. Increase output allowance to 16k tokens to avoid dropping longer schedules. No email contents enter the public-site extraction API. Existing approval and production restrictions stand.
+
+
+## final OpenRouter verification — November 2, 2026
+
+This supersedes the authentication-blocked execution status above. The approved OpenRouter adjustment completed the same 102-listing run. No private email content entered model requests. All run artifacts remain outside Git.
+
+Observed final runtime: 98 listings with evidence, 622 source references; 89 price candidates, 279 class candidates, 1,421 held facts. Both coverage totals account for 102: 95 partial, 2 extraction_failed (malformed model arrays), 1 not_found_in_reviewed_evidence, 2 fetch_failed, 2 no_website. Partial includes held facts and inaccessible widgets and is not a complete schedule certification.
+
+OpenRouter reported $2.679630 actual usage; $0.96 remains reserved for two failed requests with unknown billed outcome, totaling $3.639630 used/reserved against $10. Correct MIME identification recovered Lotus's PNG mislabeled JPEG. Final full CLI replay reused successful cached model responses with unchanged spend. No automatic retries or production writes.
+
+Source sample review: all 38 retained pilot facts (16 prices, 22 classes) plus 105 retained facts from ten stratified remainder listings (14 prices, 91 classes) compared with original captured sources. No critical amount/interval/day/start errors remain in these sampled candidates after fixes. This is retained-candidate precision with a stated denominator, not overall raw model accuracy or full-site recall. Same assistant performed implementation and source review; no separate reviewer was used. Image/PDF proposals remain held, not certified by text matching. Source absence, inaccessible calendars, missed BETA/Brunswick free trials, seasonal Yamasaki entries, and branch ambiguity remain explicit coverage gaps.
+
+Corrections verified: old camp offers, dated/alternating events, ambiguous package totals and invalid age-as-date fields are held; starting-at and introductory rates carry explicit qualifiers. Quote recovery binds the class name to its actual time row under a weekday header rather than accepting a nearby time. Exact cents, explicit billing interval, unknown audience, branch attestations, transport security and no-DB restrictions remain enforced.
+
+| Requirement | Final behavior and evidence | Result |
+|---|---|---|
+| R1 | 102 stable manifest identities; separate branch records, two absent URLs, redirect identity holds | pass |
+| R2–R3 | Bounded real public HTTP collection, 13 browser captures across 10 gyms, original image/PDF bytes and source hashes; inaccessible content reported | pass; coverage partial by site |
+| R4–R6 | 143 sampled retained facts source-checked; exact semantic restrictions tested, visual and ambiguous facts held | pass for review-only extraction; no full-corpus accuracy claim |
+| R7 | Separate coverage state totals each sum to 102; failures never successful empty results | pass |
+| R8 | Actual OpenRouter requests, persistent conservative cost ledger, final no-spend cached replay, concurrent reservation and stop tests | pass |
+| R9 | Nonempty JSONL/CSV and summary/report/manual-review artifacts reloaded outside Git | pass |
+| R10 | Ten pilot plus ten deterministic stratified remainder listings; 38 + 105 retained facts checked, missed/held cases disclosed | pass; no independent agent reviewer |
+| R11 | Real local CLI never imports DB adapter or writes production; full legacy suite remains green | pass |
+
+Final local scraper tests: 125 passed, including 28 audit/provider tests. Existing Python SQLite ResourceWarnings are unrelated. Previous 116 web tests, typecheck, lint, sample-data production build and HTTP smoke remain applicable because no web/build/config files changed. CI Python 3.12 and PR preview are delivery checks, pending PR creation. No UI code change.
+
+Delivery preflight: PR to master; push task branch and normal CI/preview only. Monitor individual scraper/web/Vercel checks for up to ten minutes; no branch protection rule found (API 404). The changed interface is an offline/operator CLI, so real local paid-run/replay is its runtime evidence; web preview does not execute this tool. Recovery is withholding import and reverting the task branch if needed; production has not changed. No merge, auto-merge, deployment or import authorized for this change. Remaining P2/P3 data limitations: incomplete source coverage, held visual output, two malformed extraction responses, no whole-corpus semantic certification. No unresolved P0/P1 code finding from final self-review.

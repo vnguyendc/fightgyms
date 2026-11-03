@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import httpx
 
-from scrapers.audit_sites import Budget, coverage, extract, load_manifest, source_clock, validate
+from scrapers.audit_sites import Budget, coverage, extract, load_manifest, restore_source_ids, source_clock, validate, messages
 from scrapers.common import site_evidence as ev
 
 
@@ -46,6 +46,58 @@ class ValidationTests(unittest.TestCase):
             self.assertFalse(validate({'prices': [price]}, [source], {'slug': 'synthetic'})['facts'])
         price.update(period='4 weeks', audience='adult')
         self.assertTrue(validate({'prices': [price]}, [source], {'slug': 'synthetic'})['facts'])
+
+    def test_inferred_audience_and_dates_do_not_become_verified_fields(self):
+        source, price, cls = fixture()
+        source['text'] = 'Unlimited monthly $169.99. Monday Boxing 6:00 PM to 7:00 PM.'
+        price['quote'] = 'Unlimited monthly $169.99.'
+        row = validate({'prices': [price]}, [source], {'slug': 'synthetic'})['facts'][0]
+        self.assertEqual(row['audience'], 'unknown')
+        for field in ({'timezone': 'America/New_York'}, {'effective_dates': 'ages 5-13'}):
+            self.assertFalse(validate({'classes': [{**cls, **field}]}, [source], {'slug': 'synthetic'})['facts'])
+
+    def test_dated_sessions_old_offers_and_ambiguous_package_totals_are_held(self):
+        source, price, cls = fixture()
+        for text, change in [('Monday, November 02 Boxing 6:00 PM to 7:00 PM.', {}), ('Monday Boxing 6:00 PM to 7:00 PM every other week.', {})]:
+            source['text'] = text
+            self.assertFalse(validate({'classes': [{**cls, 'quote': text, **change}]}, [source], {'slug': 'synthetic'})['facts'])
+        source['text'] = '2025 Summer Camp total $200.'
+        price.update(quote=source['text'], plan='2025 Summer Camp', amount_usd=200, period='package')
+        self.assertFalse(validate({'prices': [price]}, [source], {'slug': 'synthetic'})['facts'])
+        source['text'] = 'Basic $85 5 sessions.'
+        price.update(quote=source['text'], plan='Basic', amount_usd=85, period='package')
+        self.assertFalse(validate({'prices': [price]}, [source], {'slug': 'synthetic'})['facts'])
+
+    def test_free_uniform_does_not_establish_a_free_trial(self):
+        source, price, _ = fixture()
+        source['text'] = 'Free uniform with membership.'
+        price.update(amount_usd=0, period='trial', quote=source['text'], plan='Trial')
+        self.assertFalse(validate({'prices': [price]}, [source], {'slug': 'synthetic'})['facts'])
+
+    def test_lower_bound_and_introductory_prices_keep_qualifiers(self):
+        source, price, _ = fixture()
+        for text, changes, expected in [('Starting at $169.99/month.', {}, 'starting_at'), ('$169.99 first month.', {'promotion': 'First month offer'}, 'introductory')]:
+            source['text'] = text
+            row = validate({'prices': [{**price, **changes, 'quote': text}]}, [source], {'slug': 'synthetic'})['facts'][0]
+            self.assertEqual(row['price_qualifier'], expected)
+
+    def test_class_quote_recovery_binds_name_to_the_actual_time_row(self):
+        source, _, cls = fixture()
+        source['text'] = 'Monday\n6:00 PM Fundamentals Boxing\n7:00 PM Advanced Boxing\nTuesday\n6:00 PM Wrestling'
+        good = {**cls, 'name': 'Advanced Boxing', 'start': '19:00', 'start_text': '7:00 PM', 'end': None, 'end_text': None, 'quote': 'Monday 7:00 PM Advanced Boxing'}
+        row = validate({'classes': [good]}, [source], {'slug': 'synthetic'})['facts'][0]
+        self.assertTrue(row['quote_recovered_from_source'])
+        self.assertIn(row['quote'], source['text'])
+        wrong = {**good, 'start': '18:00', 'start_text': '6:00 PM', 'quote': 'Monday 6:00 PM Advanced Boxing'}
+        self.assertFalse(validate({'classes': [wrong]}, [source], {'slug': 'synthetic'})['facts'])
+
+    def test_class_quote_recovery_does_not_turn_end_time_into_start(self):
+        source, _, cls = fixture()
+        source['text'] = 'Monday\n5:30 PM - 7:30 PM Open Mat\nTuesday\n6:00 PM Boxing'
+        wrong = {**cls, 'name': 'Open Mat', 'start': '19:30', 'start_text': '7:30 PM', 'end': None, 'end_text': None, 'quote': 'Monday 7:30 PM Open Mat'}
+        self.assertFalse(validate({'classes': [wrong]}, [source], {'slug': 'synthetic'})['facts'])
+        correct = {**wrong, 'start': '17:30', 'start_text': '5:30 PM', 'end': '19:30', 'end_text': '7:30 PM', 'quote': 'Monday 5:30 PM - 7:30 PM Open Mat'}
+        self.assertTrue(validate({'classes': [correct]}, [source], {'slug': 'synthetic'})['facts'])
 
     def test_visual_sources_require_human_review(self):
         source, price, _ = fixture()
@@ -109,6 +161,24 @@ class RunSafety(unittest.TestCase):
                 extract(bundle, run, budget, api)
             self.assertGreater(budget.total(), before)
             self.assertEqual(budget.rows[-1]['status'], 'reserved_unknown_outcome')
+
+    def test_json_encoded_arrays_are_parsed_without_guessing_fields(self):
+        source, price, _ = fixture()
+        raw = {'prices': json.dumps([{**price, 'source_id': 'E1'}]), 'classes': []}
+        restore_source_ids(raw, {'sources': [source]})
+        self.assertEqual(raw['prices'][0]['source_id'], 's1')
+        self.assertEqual(raw['prices'][0]['amount_usd'], 169.99)
+        with self.assertRaises(ValueError):
+            restore_source_ids({'prices': 'not JSON', 'classes': []}, {'sources': [source]})
+
+    def test_image_mime_comes_from_bytes_not_extension_or_http_header(self):
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'mislabelled.jpg'
+            Image.new('RGB', (2, 2)).save(path, format='PNG')
+            bundle = {'gym': {'slug': 'synthetic'}, 'sources': [{'id': 's', 'url': 'https://gym.example/a.jpg', 'mode': 'image', 'content_type': 'image/jpeg', 'body': str(path)}]}
+            part = messages(bundle)[0]['content'][-1]
+            self.assertEqual(part['source']['media_type'], 'image/png')
 
     def test_manifest_drops_private_contact_fields_and_rejects_duplicates(self):
         with tempfile.TemporaryDirectory() as directory:
