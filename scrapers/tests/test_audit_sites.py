@@ -26,6 +26,21 @@ def fixture():
 
 
 class ValidationTests(unittest.TestCase):
+    def test_empty_html_has_no_discoverable_links(self):
+        for html in ('', '   \n', '<!-- empty document -->'):
+            self.assertEqual(ev.discover(html, 'https://gym.example/'), [])
+            with tempfile.TemporaryDirectory() as directory:
+                body = Path(directory) / 'empty.html'
+                body.write_text(html)
+                response = {'status': 200, 'url': 'https://gym.example/', 'hash': ev.digest(html),
+                            'body': str(body), 'content_type': 'text/html', 'captured_at': '2026-11-02'}
+                fetcher = SimpleNamespace(allowed=lambda url: True, get=lambda url: response)
+                with patch.object(ev, 'public_url', side_effect=lambda url: url):
+                    bundle = ev.collect({'slug': 'empty', 'name': 'Empty', 'website': response['url']}, fetcher)
+                self.assertEqual(len(bundle['sources']), 1)
+                self.assertEqual(bundle['fallbacks'][0]['reason'], 'rendered_content_needed')
+                self.assertEqual(coverage(bundle, {'facts': [], 'held': []}, None)['prices_coverage'], 'partial')
+
     def test_exact_cents_quote_and_time_are_required(self):
         source, price, cls = fixture()
         good = validate({'prices': [price], 'classes': [cls]}, [source], {'slug': 'synthetic'})

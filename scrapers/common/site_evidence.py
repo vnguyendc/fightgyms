@@ -171,7 +171,10 @@ class Fetcher:
 
 
 def discover(html: str, base: str) -> list[dict]:
-    tree = lhtml.fromstring(html, base_url=base)
+    try:
+        tree = lhtml.fromstring(html, base_url=base)
+    except lhtml.etree.ParserError:
+        return []
     found = {}
     for node in tree.xpath('//a[@href] | //iframe[@src] | //img[@src]'):
         value = node.get('href') or node.get('src') or ''
