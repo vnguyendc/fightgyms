@@ -56,3 +56,119 @@ This still uses the existing scraper's database read and Anthropic API; `--dry-r
 ```
 
 Provider responses in tests are deliberately synthetic. Passing tests verifies the adapter, policy, guards, and integration behavior; it does not verify Jev accuracy. See the runbook for the actual credential-preflight result and the PR for independent review and CI results.
+
+## Review website prices and schedules without publishing
+
+From the repository root (Python 3.12):
+
+```bash
+.venv/bin/python -m scrapers.audit_sites \
+  --manifest /private/path/gyms.json \
+  --run-dir /private/path/website-audit
+```
+
+The manifest is a JSON array or JSONL with unique `slug`, `name`, `city`, `state`,
+`website`; optional `research_website` takes precedence. Unrelated fields such as
+email contacts are discarded. Missing sites stay visible in coverage. Collection
+requires neither a database nor an AI key. Run files must live outside the repo.
+The command never imports the DB adapter and has no apply mode.
+
+Explicit paid extraction (only with spending authority):
+
+```bash
+.venv/bin/python -m scrapers.audit_sites \
+  --manifest /private/path/gyms.json --run-dir /private/path/website-audit \
+  --extract --budget-usd 10
+```
+
+Set `ANTHROPIC_API_KEY` securely; do not print or commit it. The fixed first-party
+Haiku 4.5 model uses $1/$5 per million input/output tokens, verified against
+[provider pricing](https://platform.claude.com/docs/en/about-claude/pricing) on
+2026-11-02. Recheck pricing before later runs. A changed model requires a reviewed
+rate update. No cache, batch, server tool or regional pricing is requested.
+The count-token API rejects overly large inputs; the ledger reserves the full
+200k-token context bound of this pinned model plus the full output limit before
+each request (at least $0.28). Unknown outcomes
+retain that reservation; automatic SDK retries are disabled. A returned usage
+above the reservation stops the paid run. This is a conservative operational cap,
+not an external billing-account spending limit. `usage.json` includes all calls
+in this run directory; do not start a second run to evade its ceiling.
+
+`--only slug-a,slug-b` selects a pilot while the entire manifest stays in coverage.
+Resume with the same run directory; collected responses and identical model/prompt
+inputs are cached. For a deliberate refresh use a new run directory and a newly
+allocated budget that accounts for prior spending. The run lock prevents
+concurrent commands in one directory. No private email evidence is accepted by
+this public-site workflow.
+
+HTTP collection uses link labels and paths, including FAQs, and retains queries.
+Fragments/widgets become targeted browser tasks instead of being treated as new
+HTTP pages. Public linked PDF/image files are sent as document/image evidence
+only during paid extraction. Image/PDF facts are always held for visual review.
+Output is conservative: candidate facts still need semantic source review; a
+matching quote does not certify audience, plan eligibility, location or schedule
+completeness. Never feed these CSVs into the phone-only price importer.
+
+For dynamic pages use supported browser tooling to read the visible public site,
+including site-linked frames/tabs as needed; then save a capture array:
+
+```json
+[{
+  "gym_slug": "synthetic-example-gym",
+  "public_content": true,
+  "url": "https://example.org/schedule",
+  "parent_url": "https://example.org/",
+  "captured_at": "2026-11-02T12:00:00Z",
+  "text": "Captured visible public text, including schedule headings",
+  "label": "rendered public schedule"
+}]
+```
+
+Pass `--captures /private/path/captures.json` on resume. Capture provenance must
+be attested by the selected gym's collected page/fallback links (or its official
+homepage); at most two rendered captures per gym per import. Capture attestation
+is operator-controlled: never label authenticated/private content public. Save
+screenshots separately for visual audit. No login, CAPTCHA bypass, signup,
+booking or form submission. If a browser page cannot expose the information,
+leave an explicit coverage gap. No standalone browser automation is installed.
+
+Outputs: `prices.csv`, `classes.csv`, `facts.jsonl`, `held.jsonl`, `evidence.jsonl`,
+`coverage.jsonl`, `report.md`, `summary.json`, original response bytes, source
+bundles and cost ledger. All facts retain their billing intervals and source IDs;
+unknown/contradictory facts remain held. Schedules are never replaced by this
+command. Dates, timezone and recurrence must not be inferred from business hours.
+
+Limits: 12 HTML pages, 30 network attempts including robots/redirects, 180 seconds
+per gym, 20 seconds/request, 5 redirect hops, 10 MB/response, 5 relevant linked
+assets, 200k text characters per gym, 70k model input tokens, 16000 output tokens.
+The local HTTP fetcher checks public DNS answers before each hop, pins the
+validated public address at connection time while preserving Host/TLS SNI and
+certificate verification, disables cross-host connection reuse and environment
+proxies. It is not a public arbitrary-URL service and should not be deployed as one.
+Robots denial, missing content, timeouts, clipping, unsupported widgets and model
+errors are reported separately from successful empty extraction. A coverage flag
+never proves that pricing is unpublished.
+
+
+### OpenRouter with the same $10 run ledger
+
+Use `--provider openrouter --extract --budget-usd 10` with
+`OPENROUTER_API_KEY` in the process environment. Do not copy a key into source,
+command arguments, reports or chat. Keep the same run directory across provider
+changes so previous spending and reservations count toward the same ceiling.
+
+The adapter uses `anthropic/claude-haiku-4.5`, restricts routing to Anthropic,
+disables fallbacks, sets maximum prompt/completion prices ($1/$5 per million),
+and checks the live model catalog before extraction. Images use data URLs and
+PDFs explicitly use native file processing, avoiding separately billed OCR.
+Usage includes actual OpenRouter `cost`; absent/invalid cost stops the run while
+retaining its pessimistic reservation. Native PDF/vision facts still require
+visual review. No private email bodies or mailbox attachments enter this API.
+
+Up to `--workers` requests can run concurrently, sharing a locked persistent
+budget. Every call reserves the complete 200k model input context plus 16k output
+tokens ($0.48 for OpenRouter, including the maximum reviewed input-cache rate;
+$0.28 direct Anthropic). Failed/unknown outcomes retain their reservation.
+Cache identity includes provider, model, prompt version and output bound. Review
+CSV rows retain uncertain fields as unknown and hold unsupported branch/time/date
+or source relationships; candidate rows do not authorize production updates.
