@@ -1,5 +1,4 @@
 import type { Metadata, MetadataRoute } from "next";
-import { allGymsPath, pageCount } from "./listing";
 import { LIVE_STYLES, STYLE_SLUG, type GymCard, type Place, type Style } from "./types";
 
 const DEFAULT_ORIGIN = "https://findfightgyms.com";
@@ -56,16 +55,19 @@ export function distinctStyles(local: Pick<GymCard, "styles">[]): Style[] {
   return LIVE_STYLES.filter(style => distinctStyleListing(local, style));
 }
 
+/** A published monthly, drop-in, or trial amount, including a free trial. A blank price is not one. */
+function listedPrice(gym: Pick<GymCard, "monthly_cents" | "drop_in_cents" | "trial_cents">): boolean {
+  return (gym.monthly_cents ?? 0) > 0 || (gym.drop_in_cents ?? 0) > 0 || gym.trial_cents != null;
+}
+
+/** A gym page is strong enough to index when it lists a real price or a class schedule. A claim alone is not. */
 export function gymIndexable(gym: GymCard): boolean {
-  return paidPrice(gym) || gym.trial_cents === 0 || gym.class_count > 0 || gym.claimed;
+  return listedPrice(gym) || (gym.class_count ?? 0) > 0;
 }
 
-function paidPrice(gym: GymCard): boolean {
-  return (gym.monthly_cents ?? 0) > 0 || (gym.drop_in_cents ?? 0) > 0;
-}
-
+/** A city or discipline page is strong enough to index with 3+ gyms, or with at least one listed price. */
 export function listingIndexable(gyms: GymCard[]): boolean {
-  return gyms.length >= 2 || gyms.some(paidPrice);
+  return gyms.length >= 3 || gyms.some(listedPrice);
 }
 
 function lastVerified(gyms: GymCard[]): string | undefined {
@@ -81,7 +83,6 @@ export function directorySitemap(places: Place[], gyms: GymCard[], indexable: bo
   const paths = new Map<string, string | undefined>();
   if (publicGyms.length) paths.set("", undefined);
   if (populatedPlaces.length) paths.set("/gyms", undefined);
-  if (publicGyms.length) for (let page = 1; page <= pageCount(publicGyms.length); page++) paths.set(allGymsPath(page), undefined);
   for (const place of populatedPlaces) {
     const local = publicGyms.filter(g => g.place_slug === place.slug);
     if (listingIndexable(local)) paths.set(cityPath(place), lastVerified(local));

@@ -7,7 +7,7 @@ export const revalidate = 3600;
 
 export async function generateMetadata() {
   const { gyms, pages } = await getAllGymsListing();
-  return pageMetadata("/gyms/all", allGymsTitle(1), allGymsDescription(1, pages), gyms.length > 0);
+  return pageMetadata("/gyms/all", allGymsTitle(1), allGymsDescription(1, pages), gyms.length > 0, false);
 }
 
 export default async function AllGyms() {

@@ -24,7 +24,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps<"/gyms/all/page/[n]">): Promise<Metadata> {
   const { n } = await params;
   const { page, pages } = await resolve(n);
-  return pageMetadata(allGymsPath(page), allGymsTitle(page), allGymsDescription(page, pages));
+  return pageMetadata(allGymsPath(page), allGymsTitle(page), allGymsDescription(page, pages), true, false);
 }
 
 export default async function Page({ params }: PageProps<"/gyms/all/page/[n]">) {

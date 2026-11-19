@@ -14,9 +14,12 @@ test("city structured data cannot break out of a script; card UI does not republ
   const hostileGym = { ...gym, name: '</script><script>alert("x")</script> & \u2028', tags: ["beginner_friendly" as const] };
   const html = renderToStaticMarkup(<CityPage place={place} gyms={[hostileGym]} />);
   const blocks = [...html.matchAll(/type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
-  assert.equal((html.match(/<script/g) ?? []).length, 2, "ItemList + BreadcrumbList, nothing else");
+  assert.equal((html.match(/<script/g) ?? []).length, 3, "ItemList + BreadcrumbList + FAQPage");
   assert.equal(blocks[0].itemListElement[0].name, hostileGym.name);
   assert.equal(blocks[1]["@type"], "BreadcrumbList");
+  assert.equal(blocks[2]["@type"], "FAQPage");
+  assert.ok(blocks[2].mainEntity.some((q: { acceptedAnswer: { text: string } }) => q.acceptedAnswer.text.includes(hostileGym.name)));
+  assert.ok(blocks.every((block: { aggregateRating?: unknown; review?: unknown }) => block.aggregateRating == null && block.review == null));
   assert.deepEqual(blocks[1].itemListElement.map((i: { name: string; item: string }) => [i.name, i.item]),
     [["Gyms", "https://findfightgyms.com/gyms"], ["Arlington, VA", "https://findfightgyms.com/gyms/va/arlington"]]);
   const styled = renderToStaticMarkup(<CityPage place={place} gyms={[hostileGym]} cityGyms={[hostileGym, { ...gym, styles: ["kickboxing"] }]} style="muay_thai" />);

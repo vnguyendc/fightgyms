@@ -108,6 +108,14 @@ export function nearestGyms(origin: GymCard, gyms: GymCard[], limit = 3): { gym:
   return nearest(origin, gyms.filter((g) => g.slug !== origin.slug), limit).map(({ item, distanceMi }) => ({ gym: item, distanceMi }));
 }
 
+/** Other gyms in the same city, nearest first. Gyms without coordinates follow, by name. */
+export function sameCityGyms(origin: GymCard, gyms: GymCard[], limit = 6): { gym: GymCard; distanceMi: number | null }[] {
+  const others = gyms.filter((g) => g.slug !== origin.slug && !!origin.place_slug && g.place_slug === origin.place_slug);
+  if (!others.length) return [];
+  if (origin.lat == null || origin.lng == null) return [...others].sort(byName).slice(0, limit).map((gym) => ({ gym, distanceMi: null }));
+  return withDistances(others, { lat: origin.lat, lng: origin.lng }).slice(0, limit);
+}
+
 export function nearestPlace<T extends LatLng>(origin: { lat: number; lng: number }, places: T[]): T | null {
   return nearest(origin, places, 1)[0]?.item ?? null;
 }
@@ -147,6 +155,142 @@ export function listingSummary(label: string, place: Pick<Place, "city" | "state
 export function nearbyOrNearest(origin: Place, places: Place[], counts: Map<string, number>): NearbyPlace[] {
   const near = nearbyPlaces(origin, places, counts);
   return near.length ? near : nearbyPlaces(origin, places, counts, { radiusMi: Infinity, limit: 3 });
+}
+
+export type MoneyRange = { min: number; max: number; count: number };
+
+export type CityFacts = {
+  total: number;
+  beginner: number;
+  fightTeam: number;
+  freeTrial: number;
+  monthly: MoneyRange | null;
+  dropIn: MoneyRange | null;
+  /** Paid intro prices only. A free trial is counted in `freeTrial`, not here. */
+  trial: MoneyRange | null;
+};
+
+function moneyRange(values: number[]): MoneyRange | null {
+  if (!values.length) return null;
+  return { min: Math.min(...values), max: Math.max(...values), count: values.length };
+}
+
+/** Counts and price spans from the rows on this page. A missing price is left out, not treated as zero. */
+export function cityFacts(gyms: GymCard[]): CityFacts {
+  return {
+    total: gyms.length,
+    beginner: gyms.filter((g) => g.tags.includes("beginner_friendly")).length,
+    fightTeam: gyms.filter((g) => g.tags.includes("fighter_gym")).length,
+    freeTrial: gyms.filter((g) => g.trial_cents === 0).length,
+    monthly: moneyRange(gyms.flatMap((g) => (g.monthly_cents != null && g.monthly_cents > 0 ? [g.monthly_cents] : []))),
+    dropIn: moneyRange(gyms.flatMap((g) => (g.drop_in_cents != null && g.drop_in_cents > 0 ? [g.drop_in_cents] : []))),
+    trial: moneyRange(gyms.flatMap((g) => (g.trial_cents != null && g.trial_cents > 0 ? [g.trial_cents] : []))),
+  };
+}
+
+function series(parts: string[]): string {
+  if (parts.length <= 1) return parts[0] ?? "";
+  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+  return `${parts.slice(0, -1).join(", ")}, and ${parts.at(-1)}`;
+}
+
+function amount(range: MoneyRange): string {
+  return range.min === range.max ? money(range.min) : `${money(range.min)} to ${money(range.max)}`;
+}
+
+function priceBit(label: string, range: MoneyRange, solo: boolean): string {
+  const span = amount(range);
+  const core = range.min === range.max ? `a ${label} of ${span}` : `a ${label} from ${span}`;
+  if (solo) return core;
+  return range.count === 1 ? `1 lists ${core}` : `${range.count} list ${core}`;
+}
+
+function tagSentence(facts: CityFacts): string {
+  if (facts.beginner && facts.fightTeam) return "It is tagged beginner friendly and as a fight team.";
+  if (facts.beginner) return "It is tagged beginner friendly.";
+  if (facts.fightTeam) return "It is tagged as a fight team.";
+  return "";
+}
+
+/** Comparisons that exist on this page. Empty when the rows have no price, trial, beginner, or fight-team fact. */
+export function cityComparison(label: string, place: Pick<Place, "city" | "state">, gyms: GymCard[]): string {
+  const facts = cityFacts(gyms);
+  if (!facts.total) return "";
+  const solo = facts.total === 1;
+  const prices: string[] = [];
+  if (facts.monthly) prices.push(priceBit("monthly price", facts.monthly, solo));
+  if (facts.dropIn) prices.push(priceBit("drop-in price", facts.dropIn, solo));
+  if (facts.trial) prices.push(priceBit("trial price", facts.trial, solo));
+  if (facts.freeTrial) prices.push(solo ? "a free trial" : facts.freeTrial === 1 ? "1 lists a free trial" : `${facts.freeTrial} list a free trial`);
+  if (solo) {
+    const sentences = [prices.length ? `That gym lists ${series(prices)}.` : "", tagSentence(facts)].filter(Boolean);
+    return sentences.join(" ");
+  }
+  const parts = [...prices];
+  if (facts.beginner) parts.push(facts.beginner === 1 ? "1 is tagged beginner friendly" : `${facts.beginner} are tagged beginner friendly`);
+  if (facts.fightTeam) parts.push(facts.fightTeam === 1 ? "1 is tagged as a fight team" : `${facts.fightTeam} are tagged as a fight team`);
+  return parts.length ? `Among the ${label} gyms in ${place.city}, ${series(parts)}.` : "";
+}
+
+export type CityFaq = { question: string; answer: string };
+
+function namedAt(gyms: GymCard[], field: "monthly_cents" | "drop_in_cents" | "trial_cents", cents: number): string {
+  return series(gyms.filter((g) => g[field] === cents).map((g) => g.name).sort((a, b) => a.localeCompare(b)));
+}
+
+function endpointSentence(gyms: GymCard[], field: "monthly_cents" | "drop_in_cents" | "trial_cents", range: MoneyRange, label: string): string {
+  if (range.min === range.max) return "";
+  return ` The lowest listed ${label} is ${money(range.min)}, at ${namedAt(gyms, field, range.min)}. The highest is ${money(range.max)}, at ${namedAt(gyms, field, range.max)}.`;
+}
+
+/** Questions whose answers are fully determined by the listed rows. No question is emitted for a fact the page does not have. */
+export function cityFaqs(label: string, place: Pick<Place, "city" | "state">, gyms: GymCard[]): CityFaq[] {
+  const facts = cityFacts(gyms);
+  if (!facts.total) return [];
+  const where = `${place.city}, ${place.state}`;
+  const faqs: CityFaq[] = [{
+    question: `How many ${label} gyms are listed in ${where}?`,
+    answer: `${facts.total} ${label} gym${facts.total === 1 ? " is" : "s are"} listed in ${where}.`,
+  }];
+  const solo = facts.total === 1;
+  const priceParts: string[] = [];
+  if (facts.monthly) priceParts.push(priceBit("monthly price", facts.monthly, solo));
+  if (facts.dropIn) priceParts.push(priceBit("drop-in price", facts.dropIn, solo));
+  if (facts.trial) priceParts.push(priceBit("trial price", facts.trial, solo));
+  if (facts.freeTrial) priceParts.push(solo ? "a free trial" : facts.freeTrial === 1 ? "1 lists a free trial" : `${facts.freeTrial} list a free trial`);
+  if (priceParts.length) {
+    const unpriced = gyms.filter((g) => !hasPrice(g)).length;
+    const lead = solo ? `That gym lists ${series(priceParts)}.` : `Among the ${facts.total} gyms, ${series(priceParts)}.`;
+    const missing = unpriced ? ` ${unpriced} ${unpriced === 1 ? "has" : "have"} no price listed.` : "";
+    const ends = [
+      facts.monthly ? endpointSentence(gyms, "monthly_cents", facts.monthly, "monthly price") : "",
+      facts.dropIn ? endpointSentence(gyms, "drop_in_cents", facts.dropIn, "drop-in price") : "",
+      facts.trial ? endpointSentence(gyms, "trial_cents", facts.trial, "trial price") : "",
+    ].join("");
+    faqs.push({ question: `What prices do ${label} gyms in ${where} list?`, answer: `${lead}${missing}${ends}` });
+  }
+  if (facts.freeTrial) {
+    const names = gyms.filter((g) => g.trial_cents === 0).map((g) => g.name).sort((a, b) => a.localeCompare(b));
+    faqs.push({
+      question: `Which ${label} gyms in ${where} list a free trial?`,
+      answer: `${facts.freeTrial === 1 ? "1 gym lists" : `${facts.freeTrial} gyms list`} a free trial: ${series(names)}.`,
+    });
+  }
+  if (facts.beginner) {
+    const names = gyms.filter((g) => g.tags.includes("beginner_friendly")).map((g) => g.name).sort((a, b) => a.localeCompare(b));
+    faqs.push({
+      question: `How many beginner-friendly ${label} gyms are listed in ${where}?`,
+      answer: `${facts.beginner} of ${facts.total} ${facts.beginner === 1 ? "is" : "are"} tagged beginner friendly: ${series(names)}. The tag means the gym describes fundamentals or all-levels classes on its own site.`,
+    });
+  }
+  if (facts.fightTeam) {
+    const names = gyms.filter((g) => g.tags.includes("fighter_gym")).map((g) => g.name).sort((a, b) => a.localeCompare(b));
+    faqs.push({
+      question: `How many ${label} gyms in ${where} list a fight team?`,
+      answer: `${facts.fightTeam} of ${facts.total} ${facts.fightTeam === 1 ? "is" : "are"} tagged as a fight team: ${series(names)}. The tag means the gym describes an active competition team on its site.`,
+    });
+  }
+  return faqs;
 }
 
 /** "11 gyms · 8 beginner friendly · 3 with a listed price · 4 with a schedule"; zero parts are left out. */
