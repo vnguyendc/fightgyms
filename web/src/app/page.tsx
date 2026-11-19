@@ -5,7 +5,7 @@ import SiteSearch from "@/components/SiteSearch";
 import { getAllGyms, getPlaces } from "@/lib/data";
 import { listStates } from "@/lib/format";
 import { byCompleteness, placeCounts } from "@/lib/geo";
-import { SITE, cityPath, distinctStyleListing, pageMetadata } from "@/lib/site";
+import { SITE, cityPath, distinctStyleListing, gymIndexable, listingIndexable, pageMetadata } from "@/lib/site";
 import { LIVE_STYLES, STYLE_LABEL } from "@/lib/types";
 
 export const revalidate = 3600;
@@ -26,6 +26,9 @@ export default async function Home() {
   const [places, gyms] = await Promise.all([getPlaces(), getAllGyms()]);
   const counts = placeCounts(gyms);
   const cities = places.filter((p) => counts.get(p.slug)).sort((a, b) => (counts.get(b.slug) ?? 0) - (counts.get(a.slug) ?? 0));
+  const inCity = (slug: string) => gyms.filter((g) => g.place_slug === slug);
+  const strong = cities.filter((p) => listingIndexable(inCity(p.slug)));
+  const topCities = (strong.length ? strong : cities).slice(0, 8);
   const featured = [...gyms].sort(byCompleteness).slice(0, 6);
   const states = listStates(cities.map((p) => p.state));
 
@@ -44,7 +47,7 @@ export default async function Home() {
         )}
         <div className="mt-8"><SiteSearch size="large" /></div>
         <div className="mt-4 flex flex-wrap gap-2">
-          {cities.slice(0, 8).map((p) => (
+          {topCities.map((p) => (
             <Link key={p.slug} href={cityPath(p)} className="rounded-full border border-line px-4 py-2 text-sm hover:border-accent">
               {p.city}, {p.state} <span className="text-muted">({counts.get(p.slug)})</span>
             </Link>
@@ -54,6 +57,32 @@ export default async function Home() {
           </Link>
         </div>
       </section>
+
+      {topCities.length > 0 && (
+        <section className="py-8">
+          <h2 className="text-xl font-semibold">Cities</h2>
+          <div className="mt-4 grid gap-6 sm:grid-cols-2">
+            {topCities.map((p) => {
+              const local = inCity(p.slug);
+              const priced = local.filter(gymIndexable).sort(byCompleteness);
+              const picks = (priced.length ? priced : [...local].sort(byCompleteness)).slice(0, 4);
+              return (
+                <div key={p.slug}>
+                  <h3 className="font-medium">
+                    <Link href={cityPath(p)} className="hover:text-accent">{p.city}, {p.state}</Link>
+                    <span className="text-sm text-muted"> ({counts.get(p.slug)})</span>
+                  </h3>
+                  <ul className="mt-2 space-y-1 text-sm">
+                    {picks.map((g) => (
+                      <li key={g.slug}><Link href={`/gym/${g.slug}`} className="text-muted hover:text-ink">{g.name}</Link></li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <section className="py-8">
         <div className="flex items-baseline justify-between mb-4">

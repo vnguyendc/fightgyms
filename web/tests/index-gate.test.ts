@@ -7,18 +7,26 @@ import { directorySitemap, gymIndexable, listingIndexable, pageMetadata } from "
 
 const bare = { ...gym, monthly_cents: null, drop_in_cents: null, trial_cents: null, class_count: 0, claimed: false };
 
-test("gym gate accepts each approved fact, including free-trial-only pages", () => {
+test("gym gate accepts a listed price or a schedule, and a city needs three gyms or a price", () => {
   assert.equal(gymIndexable(bare), false);
-  for (const fact of [{ monthly_cents: 15000 }, { drop_in_cents: 2000 }, { trial_cents: 0 }, { class_count: 1 }, { claimed: true }]) {
+  assert.equal(gymIndexable({ ...bare, claimed: true }), false);
+  for (const fact of [{ monthly_cents: 15000 }, { drop_in_cents: 2000 }, { trial_cents: 0 }, { trial_cents: 2000 }, { class_count: 1 }]) {
     assert.equal(gymIndexable({ ...bare, ...fact }), true, JSON.stringify(fact));
   }
-  assert.equal(gymIndexable({ ...bare, trial_cents: 0 }), true);
-  assert.equal(gymIndexable({ ...bare, trial_cents: 2000 }), false);
   assert.equal(listingIndexable([]), false);
   assert.equal(listingIndexable([bare]), false);
-  assert.equal(listingIndexable([{ ...bare, trial_cents: 0 }]), false);
+  assert.equal(listingIndexable([bare, { ...bare, slug: "other" }]), false);
+  assert.equal(listingIndexable([bare, { ...bare, slug: "b" }, { ...bare, slug: "c" }]), true);
+  assert.equal(listingIndexable([{ ...bare, trial_cents: 0 }]), true);
+  assert.equal(listingIndexable([{ ...bare, trial_cents: 2000 }]), true);
   assert.equal(listingIndexable([{ ...bare, monthly_cents: 15000 }]), true);
-  assert.equal(listingIndexable([bare, { ...bare, slug: "other" }]), true);
+  const carabao = { ...bare, slug: "carabao-muay-thai-llc-herndon-va", address: "3080 Centreville Rd, Herndon, VA 20171", styles: ["muay_thai" as const], website: null, photo_path: null };
+  assert.equal(gymIndexable(carabao), true, "a Search Console earner with an address and a live discipline stays");
+  assert.equal(gymIndexable({ ...carabao, address: null }), false);
+  assert.equal(gymIndexable({ ...carabao, address: "Herndon, VA" }), false);
+  assert.equal(gymIndexable({ ...carabao, styles: ["bjj"] }), false);
+  assert.equal(gymIndexable({ ...carabao, slug: "another-thin-gym" }), false);
+  assert.equal(gymIndexable({ ...bare, slug: "another-thin-gym", website: "https://example.com", photo_path: "/photo.webp" }), false, "a website and a photo do not reopen a thin gym");
 });
 
 test("sitemap and metadata agree; gated pages retain follow only in the live production runtime", () => {
@@ -40,11 +48,17 @@ test("sitemap and metadata agree; gated pages retain follow only in the live pro
   const freeTrial = { ...bare, trial_cents: 0, last_verified_at: "2026-10-02" };
   const trialEntries = directorySitemap([place], [freeTrial], true, false);
   assert.ok(trialEntries.some(e => e.url.endsWith(`/gym/${freeTrial.slug}`) && e.lastModified === "2026-10-02"));
-  assert.ok(!trialEntries.some(e => e.url.endsWith("/arlington")), "single-gym free-trial city still fails listing gate");
+  assert.ok(trialEntries.some(e => e.url.endsWith("/arlington")), "a listed trial price qualifies the city");
+  assert.ok(!trialEntries.some(e => e.url.includes("/gyms/all")));
   assert.deepEqual(directorySitemap([place], [freeTrial], false, false), []);
-  for (const trial_cents of [null, 2000]) {
-    assert.ok(!directorySitemap([place], [{ ...bare, trial_cents }], true, false).some(e => e.url.includes("/gym/")));
-  }
+  assert.ok(!directorySitemap([place], [{ ...bare, trial_cents: null }], true, false).some(e => e.url.includes("/gym/")));
+  assert.ok(directorySitemap([place], [{ ...bare, trial_cents: 2000 }], true, false).some(e => e.url.includes("/gym/")));
+  const thin = [bare, { ...bare, slug: "second" }];
+  assert.ok(!directorySitemap([place], thin, true, false).some(e => e.url.endsWith("/arlington")));
+  assert.ok(directorySitemap([place], [...thin, { ...bare, slug: "third" }], true, false).some(e => e.url.endsWith("/arlington")));
+  const carabao = { ...bare, slug: "carabao-muay-thai-llc-herndon-va", address: "3080 Centreville Rd, Herndon, VA 20171" };
+  assert.ok(directorySitemap([place], [carabao], true, false).some(e => e.url.endsWith(`/gym/${carabao.slug}`)));
+  assert.ok(!directorySitemap([place], [{ ...carabao, address: null }], true, false).some(e => e.url.includes("/gym/")));
   const other = { ...bare, slug: "other", styles: ["kickboxing" as const], last_verified_at: "2026-10-15" };
   const both = directorySitemap([place], [priced, other], true, false);
   assert.equal(both.find(e => e.url.endsWith("/arlington"))?.lastModified, "2026-10-15");

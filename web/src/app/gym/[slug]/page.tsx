@@ -6,7 +6,7 @@ import { GymPhoto } from "@/components/GymPhoto";
 import OutboundLink from "@/components/OutboundLink";
 import { getAllGyms, getGym, getPlace } from "@/lib/data";
 import { DOW, fmtTime, fullAddress, miles, money, photoUrl } from "@/lib/format";
-import { featuredToday, isFeatured, nearestGyms } from "@/lib/geo";
+import { featuredToday, isFeatured, sameCityGyms } from "@/lib/geo";
 import { SITE, breadcrumbJsonLd, cityPath, distinctStyleListing, jsonLd as serializeJsonLd, gymIndexable, pageMetadata, runtimePolicy, safeExternalUrl } from "@/lib/site";
 import { LIVE_STYLES, SOCIAL_LABEL, STYLE_LABEL, TAG_LABEL, type Price } from "@/lib/types";
 
@@ -70,7 +70,8 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
   const trial = g.trial_cents ?? headline.find((p) => p.kind === "trial")?.amount_cents ?? null;
   const fromWebsite = g.prices.some((p) => p.verified_by === "website") || g.photos.some((p) => p.credit === "website");
   const trust = [fromWebsite ? "Listed from the gym\u2019s website" : null, lastVerified ? `prices last verified ${lastVerified}` : null].filter(Boolean).join(" · ");
-  const nearby = nearestGyms(g, all, 3);
+  const cityMates = sameCityGyms(g, all);
+  const cityName = g.city ?? place?.city;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -281,31 +282,29 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
             <p className="text-muted mt-1">A founding featured listing stays at the top of this city for a year and shows a Featured badge. $149.</p>
             <Link href="/for-gyms" className="mt-3 inline-block underline">See what it includes →</Link>
           </div>
-          <div className="rounded-xl border border-line p-4 text-sm">
-            {nearby.length > 0 && (
-              <>
-                <div className="font-medium">Nearby gyms</div>
-                <ul className="mt-2 space-y-1.5">
-                  {nearby.map(({ gym: n, distanceMi }) => (
-                    <li key={n.slug} className="flex justify-between gap-3">
-                      <Link href={`/gym/${n.slug}`} className="underline hover:text-accent">{n.name}</Link>
-                      <span className="text-muted whitespace-nowrap">{miles(distanceMi)}{n.city && n.city !== g.city ? ` · ${n.city}` : ""}</span>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-            {place && (
-              <>
-                <Link href={cityHref} className={`${nearby.length ? "mt-3" : ""} block underline`}>All gyms in {place.city}</Link>
-                {g.styles.filter((s) => LIVE_STYLES.includes(s)).map((s) => (
-                  <Link key={s} href={distinctStyleListing(all.filter((x) => x.place_slug === place.slug), s) ? cityPath(place, s) : cityPath(place)} className="mt-2 block underline">{STYLE_LABEL[s]} in {place.city}</Link>
-                ))}
-              </>
-            )}
-          </div>
+          {place && (
+            <div className="rounded-xl border border-line p-4 text-sm">
+              <Link href={cityHref} className="block underline">All gyms in {place.city}</Link>
+              {g.styles.filter((s) => LIVE_STYLES.includes(s)).map((s) => (
+                <Link key={s} href={distinctStyleListing(all.filter((x) => x.place_slug === place.slug), s) ? cityPath(place, s) : cityPath(place)} className="mt-2 block underline">{STYLE_LABEL[s]} in {place.city}</Link>
+              ))}
+            </div>
+          )}
         </aside>
       </div>
+      {cityMates.length > 0 && cityName && (
+        <section className="mt-12 max-w-3xl">
+          <h2 className="text-xl font-semibold">Nearby gyms in {cityName}</h2>
+          <ul className="mt-3 space-y-2 text-sm">
+            {cityMates.map(({ gym: n, distanceMi }) => (
+              <li key={n.slug} className="flex justify-between gap-3">
+                <Link href={`/gym/${n.slug}`} className="underline hover:text-accent">{n.name}</Link>
+                {distanceMi != null && <span className="text-muted whitespace-nowrap">{miles(distanceMi)}</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

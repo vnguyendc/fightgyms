@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import CityPage from "@/components/CityPage";
 import { getAllGyms, getGymsByPlace, getPlace, getPlaces } from "@/lib/data";
-import { nearbyOrNearest, placeCounts } from "@/lib/geo";
+import { cityComparison, listingSummary, nearbyOrNearest, placeCounts } from "@/lib/geo";
 import { cityPath, listingIndexable, distinctStyleListing, pageMetadata } from "@/lib/site";
 import { LIVE_STYLES, STYLE_LABEL, STYLE_SLUG, type Style } from "@/lib/types";
 
@@ -36,8 +36,10 @@ export async function generateMetadata({ params }: PageProps<"/gyms/[state]/[cit
   const place = await getPlace(`${city}-${state}`);
   if (!place) notFound();
   const { gyms } = await styleListing(place, st);
-  return pageMetadata(cityPath(place, st), `${STYLE_LABEL[st]} Gyms in ${place.city}, ${place.state}`,
-    `Browse ${gyms.length} listed ${STYLE_LABEL[st]} gym${gyms.length === 1 ? "" : "s"} in ${place.city}, ${place.state}. Find gym websites, locations and available training details.`, true, listingIndexable(gyms));
+  const label = STYLE_LABEL[st];
+  const description = [listingSummary(label, place, gyms), cityComparison(label, place, gyms)].filter(Boolean).join(" ");
+  return pageMetadata(cityPath(place, st), `${label} Gyms in ${place.city}, ${place.state}`,
+    description, true, listingIndexable(gyms));
 }
 
 export default async function Page({ params }: PageProps<"/gyms/[state]/[city]/[style]">) {

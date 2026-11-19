@@ -1,5 +1,4 @@
 import type { Metadata, MetadataRoute } from "next";
-import { allGymsPath, pageCount } from "./listing";
 import { LIVE_STYLES, STYLE_SLUG, type GymCard, type Place, type Style } from "./types";
 
 const DEFAULT_ORIGIN = "https://findfightgyms.com";
@@ -56,16 +55,31 @@ export function distinctStyles(local: Pick<GymCard, "styles">[]): Style[] {
   return LIVE_STYLES.filter(style => distinctStyleListing(local, style));
 }
 
+/** A published monthly, drop-in, or trial amount, including a free trial. A blank price is not one. */
+function listedPrice(gym: Pick<GymCard, "monthly_cents" | "drop_in_cents" | "trial_cents">): boolean {
+  return (gym.monthly_cents ?? 0) > 0 || (gym.drop_in_cents ?? 0) > 0 || gym.trial_cents != null;
+}
+
+/**
+ * Gyms Search Console already ranks and that earn clicks, with no price or schedule on the listing.
+ * Carabao (Herndon) is address + Muay Thai only; its page was around position 6.7 with real clicks.
+ * A slug here still needs a street address and a live discipline. Do not add a gym for having a website or a photo.
+ */
+const SEARCH_DEMAND = new Set(["carabao-muay-thai-llc-herndon-va"]);
+
+function hasStreetAddress(gym: Pick<GymCard, "address">): boolean {
+  return !!gym.address && /\d/.test(gym.address);
+}
+
+/** A gym page is indexable with a listed price, a class schedule, or a named Search Console earner that still has an address and a live discipline. A claim, photo, or website alone is not enough. */
 export function gymIndexable(gym: GymCard): boolean {
-  return paidPrice(gym) || gym.trial_cents === 0 || gym.class_count > 0 || gym.claimed;
+  if (listedPrice(gym) || (gym.class_count ?? 0) > 0) return true;
+  return SEARCH_DEMAND.has(gym.slug) && hasStreetAddress(gym) && gym.styles.some((s) => LIVE_STYLES.includes(s));
 }
 
-function paidPrice(gym: GymCard): boolean {
-  return (gym.monthly_cents ?? 0) > 0 || (gym.drop_in_cents ?? 0) > 0;
-}
-
+/** A city or discipline page is strong enough to index with 3+ gyms, or with at least one listed price. */
 export function listingIndexable(gyms: GymCard[]): boolean {
-  return gyms.length >= 2 || gyms.some(paidPrice);
+  return gyms.length >= 3 || gyms.some(listedPrice);
 }
 
 function lastVerified(gyms: GymCard[]): string | undefined {
@@ -81,7 +95,6 @@ export function directorySitemap(places: Place[], gyms: GymCard[], indexable: bo
   const paths = new Map<string, string | undefined>();
   if (publicGyms.length) paths.set("", undefined);
   if (populatedPlaces.length) paths.set("/gyms", undefined);
-  if (publicGyms.length) for (let page = 1; page <= pageCount(publicGyms.length); page++) paths.set(allGymsPath(page), undefined);
   for (const place of populatedPlaces) {
     const local = publicGyms.filter(g => g.place_slug === place.slug);
     if (listingIndexable(local)) paths.set(cityPath(place), lastVerified(local));

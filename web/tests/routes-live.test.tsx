@@ -43,7 +43,6 @@ test("populated routes have precise self canonicals and truthful metadata; empty
   for (const [metadata, path] of [
     [await city.generateMetadata(cityProps), "/gyms/va/arlington"],
     [await profile.generateMetadata(gymProps), "/gym/test-gym"],
-    [await all.generateMetadata(), "/gyms/all"],
   ] as const) {
     assert.equal(metadata.alternates?.canonical, `https://findfightgyms.com${path}`);
     assert.equal(metadata.openGraph?.url, `https://findfightgyms.com${path}`);
@@ -57,9 +56,12 @@ test("populated routes have precise self canonicals and truthful metadata; empty
   const empty = { ...styleProps, params: Promise.resolve({ state: "va", city: "arlington", style: "kickboxing" }) };
   await assert.rejects(() => style.generateMetadata(empty), /NEXT_HTTP_ERROR_FALLBACK;404/);
   await assert.rejects(() => style.default(empty), /NEXT_HTTP_ERROR_FALLBACK;404/);
+  const allMeta = await all.generateMetadata();
+  assert.equal(allMeta.alternates?.canonical, "https://findfightgyms.com/gyms/all");
+  assert.deepEqual(allMeta.robots, { index: false, follow: true });
   const urls = (await sitemap()).map(e => e.url);
   assert.ok(urls.includes("https://findfightgyms.com/gym/test-gym"));
-  assert.ok(urls.includes("https://findfightgyms.com/gyms/all"));
+  assert.ok(!urls.some(url => url.includes("/gyms/all")));
   assert.ok(!urls.some(url => /kickboxing$|\/events$|\/claim$|\/search$/.test(url)));
   assert.equal(robots().sitemap, "https://findfightgyms.com/sitemap.xml");
   const html = renderToStaticMarkup(await home.default());
@@ -69,6 +71,7 @@ test("populated routes have precise self canonicals and truthful metadata; empty
   assert.doesNotMatch(html, /Explore the directory|listed alphabetically/);
   assert.doesNotMatch(html, /href="\/gyms\/va\/arlington\/(muay-thai|kickboxing)"/, "home never links a redirecting discipline page");
   assert.match(html, /href="\/gyms\/all"/);
+  assert.match(html, /Cities[\s\S]*href="\/gyms\/va\/arlington"[\s\S]*href="\/gym\/test-gym"/);
   assert.match(renderToStaticMarkup(await cities.default()), /href="\/gyms\/all"/);
 });
 
@@ -87,6 +90,8 @@ test("profiles use escaped, rating-free JSON-LD and preserve usable city links w
     [["Gyms", "https://findfightgyms.com/gyms"], ["Arlington, VA", "https://findfightgyms.com/gyms/va/arlington"], [hostile.name, "https://findfightgyms.com/gym/test-gym"]]);
   assert.equal(schema.url, "https://findfightgyms.com/gym/test-gym");
   assert.equal(schema.aggregateRating, undefined);
+  assert.equal(schema.review, undefined);
+  assert.equal(schema.ratingValue, undefined);
   assert.doesNotMatch(html, /★|Google reviews|javascript:|we&#x27;ll verify|Monthly unlimited|paused/i);
   assert.doesNotMatch(html, /not available yet/);
   assert.match(html, /Is this your gym\?[\s\S]*href="\/claim\?gym=test-gym"[\s\S]*Claim this gym/);
@@ -248,15 +253,14 @@ test("all-gyms pagination: 30 per page, numbered links, page routes 404 outside 
   assert.deepEqual(schema.itemListElement.map((i: { position: number }) => i.position), [31]);
   const metadata = await allPage.generateMetadata(props("2"));
   assert.equal(metadata.alternates?.canonical, "https://findfightgyms.com/gyms/all/page/2");
-  assert.deepEqual(metadata.robots, { index: true, follow: true });
+  assert.deepEqual(metadata.robots, { index: false, follow: true });
   assert.deepEqual(await allPage.generateStaticParams(), [{ n: "2" }]);
   for (const n of ["1", "3", "02", "x", "-1"]) {
     await assert.rejects(() => allPage.generateMetadata(props(n)), /NEXT_HTTP_ERROR_FALLBACK;404/, n);
     await assert.rejects(() => allPage.default(props(n)), /NEXT_HTTP_ERROR_FALLBACK;404/, n);
   }
   const urls = (await sitemap()).map(e => e.url);
-  assert.ok(urls.includes("https://findfightgyms.com/gyms/all/page/2"));
-  assert.ok(!urls.includes("https://findfightgyms.com/gyms/all/page/3"));
+  assert.ok(!urls.some((url) => url.includes("/gyms/all")));
 });
 
 test("search page lists matching cities and gyms, and says so when nothing matches", async t => {
@@ -283,7 +287,7 @@ test("profiles show what it costs, where the facts came from, and the nearest gy
   const html = renderToStaticMarkup(await profile.default(gymProps));
   assert.match(html, /What it costs[\s\S]{0,400}Intro \/ trial[\s\S]{0,300}from gym website[\s\S]{0,300}\$20/);
   assert.match(html, /Listed from the gym’s website · prices last verified 2026-09-01/);
-  assert.match(html, /Nearby gyms[\s\S]*href="\/gym\/near-gym"[\s\S]*mi</);
+  assert.match(html, /Nearby gyms in Arlington[\s\S]*href="\/gym\/near-gym"[\s\S]*mi</);
   const schema = JSON.parse(html.match(/type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
   assert.equal(schema.priceRange, "$20 trial");
 });

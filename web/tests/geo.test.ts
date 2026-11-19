@@ -97,6 +97,39 @@ test("listing summary is one quotable sentence built only from listed counts and
   assert.equal(geo.listingSummary("Kickboxing", place, []), "");
 });
 
+test("city facts, comparison and faqs use only listed prices and tags", () => {
+  const alpha = { ...gym, slug: "alpha", name: "Alpha", monthly_cents: 12000, drop_in_cents: null, trial_cents: 0, tags: ["beginner_friendly" as const] };
+  const beta = { ...gym, slug: "beta", name: "Beta", monthly_cents: 18000, drop_in_cents: 2500, trial_cents: null, tags: ["fighter_gym" as const] };
+  const bareRow = { ...gym, slug: "bare", name: "Bare", monthly_cents: null, drop_in_cents: null, trial_cents: null, tags: [] as typeof gym.tags };
+  const facts = geo.cityFacts([alpha, beta, bareRow]);
+  assert.equal(facts.total, 3);
+  assert.equal(facts.beginner, 1);
+  assert.equal(facts.fightTeam, 1);
+  assert.equal(facts.freeTrial, 1);
+  assert.deepEqual(facts.monthly, { min: 12000, max: 18000, count: 2 });
+  assert.deepEqual(facts.dropIn, { min: 2500, max: 2500, count: 1 });
+  assert.equal(facts.trial, null);
+  assert.equal(geo.cityComparison("Muay Thai", place, [bareRow]), "");
+  assert.equal(geo.cityComparison("Muay Thai", place, [alpha]), "That gym lists a monthly price of $120 and a free trial. It is tagged beginner friendly.");
+  assert.equal(geo.cityComparison("Muay Thai", place, [alpha, beta, bareRow]),
+    "Among the Muay Thai gyms in Arlington, 2 list a monthly price from $120 to $180, 1 lists a drop-in price of $25, 1 lists a free trial, 1 is tagged beginner friendly, and 1 is tagged as a fight team.");
+  const faqs = geo.cityFaqs("Muay Thai", place, [alpha, beta, bareRow]);
+  assert.equal(faqs[0].answer, "3 Muay Thai gyms are listed in Arlington, VA.");
+  const prices = faqs.find((faq) => faq.question.startsWith("What prices"));
+  assert.match(prices?.answer ?? "", /lowest listed monthly price is \$120, at Alpha/);
+  assert.match(prices?.answer ?? "", /highest is \$180, at Beta/);
+  assert.match(prices?.answer ?? "", /1 has no price listed/);
+  assert.equal(faqs.find((faq) => faq.question.startsWith("Which"))?.answer, "1 gym lists a free trial: Alpha.");
+  assert.match(faqs.find((faq) => faq.question.includes("beginner"))?.answer ?? "", /Alpha/);
+  assert.match(faqs.find((faq) => faq.question.includes("fight team"))?.answer ?? "", /Beta/);
+  assert.equal(geo.cityFaqs("Muay Thai", place, []).length, 0);
+  assert.deepEqual(geo.cityFaqs("Muay Thai", place, [bareRow]).map((faq) => faq.question), ["How many Muay Thai gyms are listed in Arlington, VA?"]);
+  const self = { ...gym, slug: "self", lat: 38.8816, lng: -77.091 };
+  const mate = { ...gym, slug: "mate", name: "Mate", lat: 38.89, lng: -77.09 };
+  const otherCity = { ...gym, slug: "other", place_slug: "elsewhere-va", lat: 38.882, lng: -77.091 };
+  assert.deepEqual(geo.sameCityGyms(self, [self, mate, otherCity]).map((row) => row.gym.slug), ["mate"]);
+});
+
 test("nearby-or-nearest falls back to the closest listed cities when none are within the radius", () => {
   assert.equal(typeof geo.nearbyOrNearest, "function");
   const mk = (slug: string, lat: number, lng: number) => ({ ...place, slug, city: slug, lat, lng });
