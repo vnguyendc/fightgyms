@@ -12,12 +12,13 @@ test("sitemap publishes only populated public city paths and discipline paths th
     "https://findfightgyms.com", "https://findfightgyms.com/gyms", "https://findfightgyms.com/gyms/all",
     "https://findfightgyms.com/gyms/va/arlington", "https://findfightgyms.com/gyms/va/arlington/kickboxing",
     "https://findfightgyms.com/gym/test-gym", "https://findfightgyms.com/gym/both",
+    "https://findfightgyms.com/for-gyms",
   ]);
   assert.deepEqual(site.directorySitemap(places, gyms, false, true), []);
   assert.deepEqual(site.directorySitemap(places, [], true, false), []);
   assert.ok(site.directorySitemap(places, gyms, true, true).some(e => e.url.endsWith("/events")));
   assert.deepEqual(site.directorySitemap([], [], true, true).map(e => e.url), ["https://findfightgyms.com/events"]);
-  assert.deepEqual(site.directorySitemap([], [gym], true, false).map(e => e.url), ["https://findfightgyms.com", "https://findfightgyms.com/gyms/all", "https://findfightgyms.com/gym/test-gym"]);
+  assert.deepEqual(site.directorySitemap([], [gym], true, false).map(e => e.url), ["https://findfightgyms.com", "https://findfightgyms.com/gyms/all", "https://findfightgyms.com/gym/test-gym", "https://findfightgyms.com/for-gyms"]);
   assert.deepEqual(site.directorySitemap(places, [{ ...gym, slug: "sample-misflagged" }], true, false), []);
   assert.ok(!urls.some(url => url.includes("/gyms/all/page/")));
   const many = Array.from({ length: 31 }, (_, i) => ({ ...gym, slug: `gym-${i}` }));

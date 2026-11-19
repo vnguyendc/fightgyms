@@ -50,6 +50,7 @@ test("signed-out view offers the magic link with the gym kept and a honeypot", (
   assert.match(html, /name="gym" value="test-gym"/);
   assert.match(html, /<input type="email" required=""[^>]*name="email"\/>/);
   assert.match(html, /name="website_url"/);
+  assert.match(html, /href="\/for-gyms"/);
   assert.doesNotMatch(html, /api\/submissions|upload|premium/i);
   const bare = render({ kind: "signed-out", gym: null, gymSlug: null, notice: null });
   assert.match(bare, /Gym updates/);

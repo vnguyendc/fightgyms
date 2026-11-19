@@ -40,7 +40,7 @@ try {
     assert.match(html, path.startsWith("/claim") ? /not available yet/ : /Directory temporarily unavailable/);
     console.log(`PASS ${status} ${path}: self canonical, noindex, honest state`);
   }
-  for (const path of ["/about", "/privacy"]) {
+  for (const path of ["/about", "/privacy", "/for-gyms"]) {
     const { status, html } = await request(path);
     assert.equal(status, 200, path);
     assert.match(html, /<meta name="robots" content="noindex, nofollow"/);
@@ -57,7 +57,14 @@ try {
   assert.equal(home.headers.get("x-powered-by"), null, "framework header removed");
   console.log("PASS /: security headers, no x-powered-by");
   assert.match(homeHtml, /href="\/about"/);
+  assert.match(homeHtml, /href="\/for-gyms"/);
   assert.match(homeHtml, /href="\/privacy"/);
+  assert.doesNotMatch(homeHtml, /href="\/events"/);
+  const about = await request("/about");
+  assert.doesNotMatch(about.html, /Maryland and Virginia/);
+  const owners = await request("/for-gyms");
+  assert.match(owners.html, /\$149/);
+  assert.doesNotMatch(owners.html, /buy\.stripe\.com|mailto:/);
   assert.match(homeHtml, /"@type":"WebSite"/);
   assert.match(homeHtml, /"@type":"Organization"/);
   assert.match(homeHtml, /"@type":"SearchAction"/);

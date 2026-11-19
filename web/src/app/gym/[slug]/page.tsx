@@ -3,9 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, FighterBadge } from "@/components/GymCard";
 import { GymPhoto } from "@/components/GymPhoto";
+import OutboundLink from "@/components/OutboundLink";
 import { getAllGyms, getGym, getPlace } from "@/lib/data";
 import { DOW, fmtTime, fullAddress, miles, money, photoUrl } from "@/lib/format";
-import { nearestGyms } from "@/lib/geo";
+import { featuredToday, isFeatured, nearestGyms } from "@/lib/geo";
 import { SITE, breadcrumbJsonLd, cityPath, distinctStyleListing, jsonLd as serializeJsonLd, gymIndexable, pageMetadata, runtimePolicy, safeExternalUrl } from "@/lib/site";
 import { LIVE_STYLES, SOCIAL_LABEL, STYLE_LABEL, TAG_LABEL, type Price } from "@/lib/types";
 
@@ -130,6 +131,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
           {trust && <p className="mt-1 text-xs text-muted">{trust}</p>}
           {(g.owner_updated_at || g.prices.some(p => p.verified_by === "gym_claim")) && <p className="mt-2 text-xs text-muted">This listing includes owner-supplied facts. They are not independently checked. Confirm current details with the gym.</p>}
           <div className="mt-3 flex flex-wrap gap-1.5">
+            {isFeatured(g, featuredToday()) && <Badge tone="gold">Featured</Badge>}
             {g.styles.map((s) => <Badge key={s} tone="accent">{STYLE_LABEL[s] ?? s}</Badge>)}
             <FighterBadge active={g.active_fighters} pro={g.pro_fighters} />
             {g.tags.map((t) => <Badge key={t}>{TAG_LABEL[t] ?? t}</Badge>)}
@@ -169,7 +171,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
           <section className="mt-10">
             <h2 className="text-xl font-semibold">Class schedule</h2>
             {g.classes.length === 0 ? (
-              <p className="mt-2 text-muted text-sm">No schedule yet. {website && <a href={website} className="underline" rel="nofollow">Check the gym&apos;s site.</a>}</p>
+              <p className="mt-2 text-muted text-sm">No schedule yet. {website && <OutboundLink href={website} slug={g.slug} type="website" external className="underline">Check the gym&apos;s site.</OutboundLink>}</p>
             ) : (
               <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {[1, 2, 3, 4, 5, 6, 0].filter((d) => byDay.has(d)).map((d) => (
@@ -256,13 +258,13 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
               <p className="mt-2 text-muted">No prices listed yet. Contact the gym for current rates.</p>
             )}
             <div className="mt-4 space-y-1.5">
-              {website && <a href={website} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">Website ↗</a>}
+              {website && <OutboundLink href={website} slug={g.slug} type="website" external className="block underline hover:text-accent">Website ↗</OutboundLink>}
               {socials.map((s) => (
-                <a key={`${s.platform}:${s.href}`} href={s.href} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">
+                <OutboundLink key={`${s.platform}:${s.href}`} href={s.href} slug={g.slug} type={s.platform} external className="block underline hover:text-accent">
                   {`${SOCIAL_LABEL[s.platform]}${s.handle ? ` @${s.handle}` : ""} ↗`}
-                </a>
+                </OutboundLink>
               ))}
-              {g.phone && <a href={`tel:${g.phone}`} className="block underline hover:text-accent">{g.phone}</a>}
+              {g.phone && <OutboundLink href={`tel:${g.phone}`} slug={g.slug} type="phone" className="block underline hover:text-accent">{g.phone}</OutboundLink>}
               {g.address && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress(g) ?? g.address)}`} rel="nofollow noopener" target="_blank" className="block underline hover:text-accent">Directions ↗</a>}
             </div>
             {g.founded_year && <div className="mt-4 text-xs text-muted">Est. {g.founded_year}</div>}
@@ -274,6 +276,11 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
               <Link href={`/claim?gym=${g.slug}`} className="mt-3 inline-block underline">{g.claimed ? "Staff? Sign in →" : "Claim this gym →"}</Link>
             </div>
           )}
+          <div className="rounded-xl border border-line p-4 text-sm">
+            <div className="font-medium">For gym owners</div>
+            <p className="text-muted mt-1">A founding featured listing stays at the top of this city for a year and shows a Featured badge. $149.</p>
+            <Link href="/for-gyms" className="mt-3 inline-block underline">See what it includes →</Link>
+          </div>
           <div className="rounded-xl border border-line p-4 text-sm">
             {nearby.length > 0 && (
               <>

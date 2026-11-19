@@ -27,6 +27,20 @@ test("completeness counts price, schedule, photo, website; legacy rows score zer
   assert.equal(geo.completeness(legacy as typeof bare), 0);
   const a = { ...bare, slug: "a", name: "Alpha" }, b = { ...bare, slug: "b", name: "Bravo", website: "https://example.com" }, c = { ...bare, slug: "c", name: "Alpha" };
   assert.deepEqual([c, b, a].sort(geo.byCompleteness).map((g) => g.slug), ["b", "a", "c"]);
+  const today = "2026-11-19";
+  const rich = { ...bare, slug: "rich", name: "Rich", website: "https://a.example", photo_path: "a.webp", class_count: 1, trial_cents: 100 };
+  const expired = { ...rich, slug: "old", name: "Old", featured: true, featured_until: "2026-11-18" };
+  const pinned = { ...bare, slug: "feat", name: "Feat", featured: true, featured_until: today };
+  const open = { ...bare, slug: "open", name: "Open", featured: true, featured_until: null };
+  const off = { ...rich, slug: "off", name: "Off", featured: false, featured_until: "2099-01-01" };
+  assert.equal(geo.isFeatured(pinned, today), true);
+  assert.equal(geo.isFeatured(open, today), true);
+  assert.equal(geo.isFeatured(expired, today), false);
+  assert.equal(geo.isFeatured(off, today), false);
+  assert.equal(geo.isFeatured({ ...pinned, featured_until: "not-a-date" }, today), false);
+  assert.deepEqual([rich, expired, pinned, off, a].sort((x, y) => geo.byListing(x, y, today)).map((g) => g.slug), ["feat", "off", "old", "rich", "a"]);
+  const near = [{ gym: a, distanceMi: 1 }, { gym: pinned, distanceMi: 9 }, { gym: rich, distanceMi: 2 }];
+  assert.deepEqual(geo.pinFeatured(near, (row) => geo.isFeatured(row.gym, today)).map((row) => row.gym.slug), ["feat", "a", "rich"]);
 });
 
 test("distance sort keeps unlocated gyms at the end without a distance", () => {

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import GymList from "@/components/GymList";
 import { miles } from "@/lib/format";
-import { NEARBY_RADIUS_MI, byCompleteness, coverage, coverageLine, listingSummary, type NearbyPlace } from "@/lib/geo";
+import { NEARBY_RADIUS_MI, byListing, coverage, coverageLine, featuredToday, isFeatured, listingSummary, type NearbyPlace } from "@/lib/geo";
 import { SITE, breadcrumbJsonLd, cityPath, distinctStyles, jsonLd as serializeJsonLd } from "@/lib/site";
 import { STYLE_LABEL, type GymCard as GymCardT, type Place, type Style } from "@/lib/types";
 
@@ -28,7 +28,9 @@ function NearbyCities({ city, nearby }: { city: string; nearby: NearbyPlace[] })
 export default function CityPage({ place, gyms, style, nearby = [], cityGyms = gyms }: { place: Place; gyms: GymCardT[]; style?: Style; nearby?: NearbyPlace[]; cityGyms?: GymCardT[] }) {
   const base = cityPath(place);
   const label = style ? STYLE_LABEL[style] : "Muay Thai & Kickboxing";
-  const ordered = [...gyms].sort(byCompleteness);
+  const today = featuredToday();
+  const ordered = [...gyms].sort((a, b) => byListing(a, b, today));
+  const featuredCount = ordered.filter((g) => isFeatured(g, today)).length;
   const beginner = ordered.filter((g) => g.tags.includes("beginner_friendly"));
   const thin = gyms.length < 4 && nearby.length > 0;
 
@@ -62,7 +64,7 @@ export default function CityPage({ place, gyms, style, nearby = [], cityGyms = g
       </h1>
       {gyms.length > 0 && <p className="mt-3 max-w-2xl">{listingSummary(label, place, gyms)}</p>}
       <p className="mt-2 text-muted max-w-2xl text-sm">
-        {coverageLine(coverage(gyms))} · most complete listings first. Check with the gym for current classes, prices and trial availability.
+        {coverageLine(coverage(gyms))} · {featuredCount ? "featured listings first, then most complete" : "most complete listings first"}. Check with the gym for current classes, prices and trial availability.
       </p>
 
       <div className="mt-6 flex flex-wrap gap-2 text-sm">
@@ -83,7 +85,7 @@ export default function CityPage({ place, gyms, style, nearby = [], cityGyms = g
       {gyms.length === 0 ? (
         <p className="mt-10 text-muted">No gyms listed yet. <Link href="/gyms" className="underline">Browse other cities.</Link></p>
       ) : (
-        <GymList gyms={ordered} />
+        <GymList gyms={ordered} today={today} />
       )}
 
       {beginner.length > 0 && (

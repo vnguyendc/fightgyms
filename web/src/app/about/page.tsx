@@ -1,5 +1,9 @@
 import Link from "next/link";
+import { getPlaces } from "@/lib/data";
+import { listStates } from "@/lib/format";
 import { SITE, pageMetadata } from "@/lib/site";
+
+export const revalidate = 3600;
 
 export async function generateMetadata() {
   return pageMetadata("/about", `About ${SITE.name}`,
@@ -16,11 +20,12 @@ const TIERS = [
 ] as const;
 
 export default async function About() {
+  const states = listStates((await getPlaces()).map((p) => p.state));
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">About {SITE.name}</h1>
       <p className="mt-4 text-muted">
-        {SITE.name} is a directory of Muay Thai and kickboxing gyms in Washington, DC, Maryland and Virginia. Each listing carries the gym’s
+        {SITE.name} is a directory of Muay Thai and kickboxing gyms{states ? ` in ${states}` : ""}. Each listing carries the gym’s
         location and website, and, where the gym publishes them, its prices and class schedule with the date they were checked.
       </p>
 
@@ -44,7 +49,7 @@ export default async function About() {
 
       <h2 className="mt-10 text-xl font-semibold">What is never shown</h2>
       <ul className="mt-2 space-y-1 text-muted list-disc pl-5">
-        <li>Star ratings or review counts copied from other platforms. Listings are ordered by how complete they are, not by ratings.</li>
+        <li>Star ratings or review counts copied from other platforms. Listings are ordered by how complete they are, not by ratings. A gym with an active featured listing is shown first on its city and discipline pages until the featured end date; the order of the other gyms does not change.</li>
         <li>Photos taken from map or social platforms. Photos come only from the gym’s own website or from a verified claimant.</li>
         <li>Guessed prices, schedules or hours.</li>
       </ul>
@@ -58,7 +63,8 @@ export default async function About() {
 
       <h2 className="mt-10 text-xl font-semibold">Coverage</h2>
       <p className="mt-2 text-muted">
-        Muay Thai and kickboxing are live today. Other disciplines are tracked but not yet published. See the{" "}
+        {states ? `The gyms listed right now are in ${states}. ` : ""}
+        A city page exists only where at least one gym is listed. Muay Thai and kickboxing are live today. Other disciplines are tracked but not yet published. See the{" "}
         <Link href="/privacy" className="underline">privacy notice</Link> for what this site records about visitors.
       </p>
     </div>

@@ -49,6 +49,14 @@ function Panel({ title, children, gym }: { title: string; children: React.ReactN
   );
 }
 
+function OwnersPitch() {
+  return (
+    <p className="mt-8 text-sm text-muted">
+      A founding featured listing is $149 for one year. <Link href="/for-gyms" className="underline">What gym owners get</Link>.
+    </p>
+  );
+}
+
 function Honeypot() {
   return (
     <div className="hidden" aria-hidden="true">
@@ -74,6 +82,7 @@ function SignedOut({ gym, gymSlug, notice }: Extract<ClaimState, { kind: "signed
         <p className="text-xs text-muted">No password. The link works for an hour; one link per minute.</p>
       </form>
       <p className="mt-8 text-sm text-muted">Gym not listed? Sign in with your email above, then submit it.</p>
+      <OwnersPitch />
     </div>
   );
 }
@@ -185,6 +194,7 @@ function SignedIn({ user, gym, claims, submissions, gyms, editableGym, saved, re
       </section>
 
       <p className="mt-10 text-xs text-muted">Every claim and new gym submission is checked by hand. Verified claimants can publish listing edits immediately; owner-supplied facts are not independently checked.</p>
+      <OwnersPitch />
     </div>
   );
 }

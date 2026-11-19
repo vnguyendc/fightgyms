@@ -3,8 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import SiteHeader from "@/components/SiteHeader";
 import SiteJsonLd from "@/components/SiteJsonLd";
-import SiteSearch from "@/components/SiteSearch";
+import { hasUpcomingEvents } from "@/lib/events-nav";
 import { SITE, layoutRobots, runtimePolicy } from "@/lib/site";
 import "./globals.css";
 
@@ -20,27 +21,13 @@ export const metadata: Metadata = {
   robots: layoutRobots(runtimePolicy()),
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const showEvents = await hasUpcomingEvents();
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <SiteJsonLd />
-        <header className="border-b border-line">
-          <div className="mx-auto max-w-6xl px-4 h-14 flex items-center justify-between gap-4">
-            <Link href="/" className="font-semibold tracking-tight text-lg">
-              <span className="text-accent">▲</span> {SITE.name}
-            </Link>
-            <nav className="flex items-center gap-4 text-sm text-muted">
-              <div className="hidden sm:block"><SiteSearch /></div>
-              <Link href="/search" className="sm:hidden hover:text-ink">Search</Link>
-              <Link href="/gyms" className="hover:text-ink">Gyms</Link>
-              <Link href="/events" className="hover:text-ink">Events</Link>
-              <Link href="/claim" className="hidden sm:inline-block rounded-md border border-line px-3 py-1.5 hover:border-accent hover:text-ink">
-                Gym updates
-              </Link>
-            </nav>
-          </div>
-        </header>
+        <SiteHeader showEvents={showEvents} />
         {runtimePolicy().mode === "demo" && <div className="border-b border-gold/50 bg-gold/10 px-4 py-3 text-center text-sm text-gold">Demo directory — all listings are fictional samples, not real gyms.</div>}
         <main className="flex-1">{children}</main>
         <footer className="border-t border-line mt-16">
@@ -50,6 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/gyms" className="hover:text-ink">All cities</Link>
               <Link href="/gyms/all" className="hover:text-ink">All gyms</Link>
               <Link href="/about" className="hover:text-ink">About</Link>
+              <Link href="/for-gyms" className="hover:text-ink">For gym owners</Link>
               <Link href="/privacy" className="hover:text-ink">Privacy</Link>
               <Link href="/claim" className="hover:text-ink">Claim or submit a gym</Link>
             </span>
