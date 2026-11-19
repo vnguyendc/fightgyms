@@ -60,9 +60,21 @@ function listedPrice(gym: Pick<GymCard, "monthly_cents" | "drop_in_cents" | "tri
   return (gym.monthly_cents ?? 0) > 0 || (gym.drop_in_cents ?? 0) > 0 || gym.trial_cents != null;
 }
 
-/** A gym page is strong enough to index when it lists a real price or a class schedule. A claim alone is not. */
+/**
+ * Gyms Search Console already ranks and that earn clicks, with no price or schedule on the listing.
+ * Carabao (Herndon) is address + Muay Thai only; its page was around position 6.7 with real clicks.
+ * A slug here still needs a street address and a live discipline. Do not add a gym for having a website or a photo.
+ */
+const SEARCH_DEMAND = new Set(["carabao-muay-thai-llc-herndon-va"]);
+
+function hasStreetAddress(gym: Pick<GymCard, "address">): boolean {
+  return !!gym.address && /\d/.test(gym.address);
+}
+
+/** A gym page is indexable with a listed price, a class schedule, or a named Search Console earner that still has an address and a live discipline. A claim, photo, or website alone is not enough. */
 export function gymIndexable(gym: GymCard): boolean {
-  return listedPrice(gym) || (gym.class_count ?? 0) > 0;
+  if (listedPrice(gym) || (gym.class_count ?? 0) > 0) return true;
+  return SEARCH_DEMAND.has(gym.slug) && hasStreetAddress(gym) && gym.styles.some((s) => LIVE_STYLES.includes(s));
 }
 
 /** A city or discipline page is strong enough to index with 3+ gyms, or with at least one listed price. */
