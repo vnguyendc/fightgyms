@@ -46,6 +46,15 @@ export default async function Privacy() {
       <p className="mt-2 text-muted">
         The site uses Vercel Web Analytics and Vercel Speed Insights, which record page views, the referring page, country, device and browser
         type, and page performance measurements. They do not set cookies and do not build a profile of you across other sites.
+        A click on a gym’s website, phone or social link is also sent there as a custom event with the gym’s public slug and the kind of link.
+        That event is not tied to an account.
+      </p>
+
+      <h2 className="mt-10 text-xl font-semibold">Outbound link counts</h2>
+      <p className="mt-2 text-muted">
+        The same click is stored in our database as the gym’s public slug, the kind of link (website, phone or a social platform) and the time.
+        We do not store your name, email, account, IP address or the page you landed on. The rows exist so a gym can be sent a monthly total.
+        They are not published on the site.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">Server logs</h2>

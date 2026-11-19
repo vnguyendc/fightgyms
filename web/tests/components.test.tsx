@@ -96,6 +96,16 @@ test("city pages order by completeness, state coverage honestly, and offer nearb
   assert.equal((renderToStaticMarkup(<CityPage place={place} gyms={many} nearby={nearby} />).match(/Nearby cities/g) ?? []).length, 1);
   assert.doesNotMatch(renderToStaticMarkup(<CityPage place={place} gyms={many} />), /Nearby cities/);
   assert.doesNotMatch(html, /Listed alphabetically/);
+  const pinned = { ...bare, slug: "feat", id: "feat", name: "Feat Gym", featured: true, featured_until: "2099-01-01" };
+  const featuredHtml = renderToStaticMarkup(<CityPage place={place} gyms={[rows[0], pinned]} />);
+  assert.ok(featuredHtml.indexOf('href="/gym/feat"') < featuredHtml.indexOf('href="/gym/zed"'), "an active feature is pinned above a more complete gym");
+  assert.match(featuredHtml, /featured listings first, then most complete/);
+  assert.match(featuredHtml, />Featured</);
+  const expired = { ...pinned, slug: "old", id: "old", name: "Old Gym", featured_until: "2000-01-01" };
+  const expiredHtml = renderToStaticMarkup(<CityPage place={place} gyms={[rows[1], expired]} />);
+  assert.ok(expiredHtml.indexOf('href="/gym/able"') < expiredHtml.indexOf('href="/gym/old"'), "an expired feature falls back to completeness");
+  assert.doesNotMatch(renderToStaticMarkup(<GymCard gym={expired} />), />Featured</);
+  assert.match(renderToStaticMarkup(<GymCard gym={pinned} />), />Featured</);
 });
 
 test("site search is a plain GET form to /search with no suggestions until focused", () => {

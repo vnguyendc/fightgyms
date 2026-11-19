@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { GymPhoto, PhotoFallback } from "@/components/GymPhoto";
 import { fullAddress, miles, money } from "@/lib/format";
-import { hasSchedule } from "@/lib/geo";
+import { hasSchedule, isFeatured } from "@/lib/geo";
 import { STYLE_LABEL, TAG_LABEL, type GymCard as GymCardT, type Tag } from "@/lib/types";
 
 export function Badge({ children, tone = "line" }: { children: React.ReactNode; tone?: "line" | "accent" | "gold" }) {
@@ -37,7 +37,7 @@ export function orderedTags(tags: Tag[]): Tag[] {
   return [...tags].sort((a, b) => Number(b === "beginner_friendly") - Number(a === "beginner_friendly"));
 }
 
-export default function GymCard({ gym, rank, distanceMi }: { gym: GymCardT; rank?: number; distanceMi?: number | null }) {
+export default function GymCard({ gym, rank, distanceMi, today }: { gym: GymCardT; rank?: number; distanceMi?: number | null; today?: string }) {
   const cost = costLine(gym);
   return (
     <Link
@@ -49,6 +49,9 @@ export default function GymCard({ gym, rank, distanceMi }: { gym: GymCardT; rank
           <GymPhoto path={gym.photo_path} alt={gym.name} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" />
         ) : (
           <PhotoFallback styles={gym.styles} />
+        )}
+        {isFeatured(gym, today) && (
+          <span className="absolute left-2 top-2 rounded-full border border-gold/60 bg-bg/90 px-2 py-0.5 text-xs text-gold">Featured</span>
         )}
         {distanceMi != null && (
           <span className="absolute right-2 top-2 rounded-full border border-line bg-bg/90 px-2 py-0.5 font-mono text-xs">{miles(distanceMi)}</span>

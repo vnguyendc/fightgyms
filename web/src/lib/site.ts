@@ -91,6 +91,7 @@ export function directorySitemap(places: Place[], gyms: GymCard[], indexable: bo
     }
   }
   for (const gym of publicGyms) if (gymIndexable(gym)) paths.set(`/gym/${gym.slug}`, lastVerified([gym]));
+  if (publicGyms.length) paths.set("/for-gyms", undefined);
   if (hasEvents) paths.set("/events", undefined);
   return [...paths].map(([path, lastModified]) => ({ url: `${SITE.url}${path}`, ...(lastModified ? { lastModified } : {}) }));
 }

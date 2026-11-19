@@ -90,6 +90,7 @@ test("profiles use escaped, rating-free JSON-LD and preserve usable city links w
   assert.doesNotMatch(html, /★|Google reviews|javascript:|we&#x27;ll verify|Monthly unlimited|paused/i);
   assert.doesNotMatch(html, /not available yet/);
   assert.match(html, /Is this your gym\?[\s\S]*href="\/claim\?gym=test-gym"[\s\S]*Claim this gym/);
+  assert.match(html, /href="\/for-gyms"/);
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
     const url = new URL(input instanceof Request ? input.url : input);
     if (!url.pathname.endsWith("/gym_cards")) return fixtureResponse(input);
@@ -287,7 +288,8 @@ test("profiles show what it costs, where the facts came from, and the nearest gy
   assert.equal(schema.priceRange, "$20 trial");
 });
 
-test("about and privacy pages are indexable, self-canonical, and state the method and the data handling plainly", async () => {
+test("about and privacy pages are indexable, self-canonical, and state the method and the data handling plainly", async (t) => {
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => fixtureResponse(input));
   for (const [route, path] of [[about, "/about"], [privacy, "/privacy"]] as const) {
     const metadata = await route.generateMetadata();
     assert.equal(metadata.alternates?.canonical, `https://findfightgyms.com${path}`);
@@ -298,6 +300,8 @@ test("about and privacy pages are indexable, self-canonical, and state the metho
   assert.match(aboutHtml, /manually checked[\s\S]*verified by phone[\s\S]*owner-supplied[\s\S]*from gym website[\s\S]*reported by a member/, "verification tiers, in the order the site ranks them");
   assert.match(aboutHtml, /never (invent|estimate)/i);
   assert.match(aboutHtml, /href="\/privacy"/);
+  assert.match(aboutHtml, /in VA/);
+  assert.doesNotMatch(aboutHtml, /Maryland and Virginia|Washington, DC, Maryland/);
   assert.doesNotMatch(aboutHtml, /Google rating|reviews|★/);
   const privacyHtml = renderToStaticMarkup(await privacy.default());
   assert.match(privacyHtml, /<h1[^>]*>Privacy/);

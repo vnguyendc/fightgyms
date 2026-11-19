@@ -11,9 +11,11 @@ The launch slice does not depend on Jev. It provides safe SEO behavior and a pub
 - Leave `SHOW_SAMPLE` unset/`0`. Verify the existing schema and public-read RLS with actual data before publishing.
 - Apply `supabase/migrations/0003_gym_cards_v3.sql` (`cd scrapers && .venv/bin/python run_sql.py ../supabase/migrations/0003_gym_cards_v3.sql`) before deploying a build that reads `trial_cents`/`class_count`. Older rows render as missing data, not errors. Rollback is re-running the view definition in `0002_photos.sql`; never drop data.
 - Apply migrations through `0007_owner_edits.sql` in order **before deploying the owner editor UI**. 0007 adds the atomic owner-edit RPC and private audit, orders same-day prices deterministically, and replaces the correction INSERT policy with authenticated `new_gym` inserts only. Keep these restrictions during an app rollback; never restore the permissive 0001 policy. Until the new app deploys, any old correction forms will fail closed.
-- Turn on **Web Analytics** and **Speed Insights** in the Vercel project (Analytics tab → Enable; Speed Insights tab → Enable). The code is already mounted; without the toggles the `/_vercel/insights` and `/_vercel/speed-insights` scripts 404 harmlessly and nothing is recorded. Page views, referrers, and Core Web Vitals per route appear there; the `owner_edit_published` event appears under Analytics → Events after a successful owner edit (price-field count only, no user-entered values). The old `correction_submitted` event is retired.
+- Turn on **Web Analytics** and **Speed Insights** in the Vercel project (Analytics tab → Enable; Speed Insights tab → Enable). The code is already mounted; without the toggles the `/_vercel/insights` and `/_vercel/speed-insights` scripts 404 harmlessly and nothing is recorded. Page views, referrers, and Core Web Vitals per route appear there; the `owner_edit_published` event appears under Analytics → Events after a successful owner edit (price-field count only, no user-entered values). `outbound_click` carries a gym slug and a link type (`website`, `phone`, or a social platform) and nothing else. The old `correction_submitted` event is retired.
 - Monitoring: server errors log as one JSON line with `"event":"request_error"` in Runtime Logs (Project → Logs, filter `request_error`, or Observability → Errors). Each carries the route, method, path, and an error `digest`; the public error page shows the same digest as `Reference …`, so a user's screenshot can be matched to the log line. Consider a Log Drain or a Vercel notification rule on error-rate before real traffic; none is configured by this repo.
-- Attach the purchased domain and verify HTTPS and the preferred apex/www redirect. No DNS or domain change is implied by this document.
+- Set `NEXT_PUBLIC_SALES_EMAIL` to the address that should receive founding-listing requests. Optionally set `NEXT_PUBLIC_STRIPE_PAYMENT_LINK` to an `https://*.stripe.com` payment link; leave it unset to hide the pay button. Both are public and inlined at build time, so a change needs a redeploy. Do not put a Resend API key, or any secret, in either variable.
+- Apply `supabase/migrations/0009_featured.sql` after 0008, then `0010_outbound_clicks.sql`, before expecting featured badges or stored click counts. The pages still render if those migrations are not applied yet: no gym is featured, and a click that cannot be stored is dropped after a server warning. `notify pgrst, 'reload schema'` if the Data API does not see the new columns or RPC.
+- Attach the purchased domain and verify HTTPS and the preferred apex/www redirect. Deploying the app does not change DNS. The Resend section under Gym claims lists records an operator adds separately before gym-owner email can leave the project team.
 - Without a configured real backend, production intentionally shows an unavailable state, noindex, no fictional detail routes, and an empty sitemap. That state is **not an SEO launch**.
 
 See [web checks](../web/tests/README.md) for commands and environment behavior.
@@ -104,7 +106,43 @@ There is no guarantee of rankings or traffic merely from deploying a sitemap. No
 
 Owners sign in by magic link, claim a listing, and submit missing gyms. Claims and new gym submissions start `pending`; only the reviewer verifies ownership. Verified claimants can publish bounded listing edits directly. Gates before this works for anyone outside the Supabase project team:
 
-1. **Custom SMTP.** The built-in sender delivers 2 messages per hour and refuses addresses outside the project team. Configure a provider (Resend, Postmark or SES) with a findfightgyms.com sender and its DNS records under Authentication → SMTP settings. The default limit then becomes 30 emails per hour; raise it under Rate Limits if claims outpace it.
+1. **Custom SMTP (Resend).** The built-in sender delivers 2 messages per hour and refuses addresses outside the project team. The app only calls `signInWithOtp`; it never talks to Resend. Delivery starts when the hosted project uses Resend as its SMTP relay. Nothing in git holds the API key.
+
+   Use a subdomain, `mail.findfightgyms.com`, so sending records do not take over mail for the root domain. Do not turn on Resend inbound/receiving.
+
+   In Resend: Domains → Add Domain → `mail.findfightgyms.com` → add the records Resend shows → Verify DNS. Resend generates the DKIM value. Copy that value from the dashboard. Do not reuse an example key. The records have this shape (names below are relative to `findfightgyms.com`, which is how Vercel DNS and most registrars want them):
+
+   | Type | Host | Value |
+   | --- | --- | --- |
+   | MX | `send.mail` | the feedback-smtp host Resend shows for this domain, priority `10`. A common shape is `feedback-smtp.<region>.amazonses.com`. Use the host on the Resend domain page, not a host from this table. |
+   | TXT | `send.mail` | the SPF string Resend shows. It is currently `v=spf1 include:amazonses.com ~all`. |
+   | TXT | `resend._domainkey.mail` | the DKIM TXT Resend generates (`p=...`). |
+
+   If the DNS UI wants names relative to `mail.findfightgyms.com` instead, drop the `.mail` suffix (`send`, `send`, `resend._domainkey`). Leave the records DNS-only (do not proxy them).
+
+   After SPF and DKIM verify, add DMARC on the sending domain. Use an address that is actually read:
+
+   | Type | Host | Value |
+   | --- | --- | --- |
+   | TXT | `_dmarc.mail` | `v=DMARC1; p=none; rua=mailto:<address you read>` |
+
+   Keep `p=none` until a real sign-in message passes. Tighten it later. Skip DMARC rather than point `rua` at a mailbox nobody reads.
+
+   In Resend: API Keys → create a sending key. That key is the SMTP password.
+
+   In the Supabase dashboard for this project: Authentication → Emails (under Notifications) → SMTP Settings.
+
+   | Field | Value |
+   | --- | --- |
+   | Enable custom SMTP | on |
+   | Host | `smtp.resend.com` |
+   | Port | `465` |
+   | Username | `resend` |
+   | Password | the Resend API key |
+   | Sender email | `noreply@mail.findfightgyms.com` |
+   | Sender name | `FightGyms` |
+
+   Port 465 is implicit TLS. Save. Authentication → Rate Limits: custom SMTP raises the ceiling from 2/hour to a default of 30/hour. Raise that if claim mail outpaces it. The email templates, Site URL and redirect allow-list in the next items do not change. Then send one magic link to an address that is not a project team member and confirm it arrives from `noreply@mail.findfightgyms.com`. Do not copy the link into a log, a ticket or a chat.
 2. **Email provider and production templates.** Email sign-in must be enabled. The checked-in [magic-link template](../supabase/templates/magic-link.html) and [signup confirmation template](../supabase/templates/confirmation.html) pin `/auth/confirm` to `https://www.findfightgyms.com`; a stale `.SiteURL` cannot change that link host. Both templates pass `.RedirectTo` as the claim destination. These files do not update hosted settings. A release operator must separately install both in Authentication → Email Templates and verify their saved contents. Do not use these production templates for local development.
 3. **URL Configuration and app origin.** Production Site URL and `NEXT_PUBLIC_SITE_URL` must both be `https://www.findfightgyms.com`. Redirect URLs must allow `https://www.findfightgyms.com/claim*` so `/claim` and `/claim?gym=<slug>` survive. Keep the production allowlist limited to the intended production paths; previews refuse sign-in. If Supabase substitutes its Site URL because the redirect is not allowed, the pinned template still verifies on production, but selected-gym context is lost. The app refuses production auth with missing, localhost, apex or foreign site configuration; auth response redirects also use the explicit public origin instead of request/forwarded hosts.
 
@@ -135,7 +173,34 @@ Review, as postgres in the SQL editor:
 - New gym: `select * from submission_review where field = 'new_gym' and status = 'pending'`. Create the gym through the normal path with a `sources` row `kind = 'user_submit'` whose `raw` is the submission's `proposed_value`, then `update submissions set status = 'approved' where id = '<id>'`. Only after separately verifying ownership by hand, when the role was owner, manager or coach, `insert into claims (entity_type, entity_id, user_id, status, role, contact_email) values ('gym', '<gym id>', '<submitted_by>', 'verified', '<role>', '<contact_email>')`.
 - Historical corrections remain in `submission_review`. Review those rows through the existing sourced publishing procedure; new public corrections cannot be filed. Inspect owner edit history with `select * from gym_owner_edits order by created_at desc` as the database reviewer.
 - From 2026-10-30 new tables in `public` are not exposed to the Data API by default; grant explicitly when one is added. 0005 adds none.
-- `claim_submitted`, `gym_submitted`, and `owner_edit_published` are the current conversion events; `correction_submitted` is historical.
+- `claim_submitted`, `gym_submitted`, `owner_edit_published`, and `outbound_click` are the current conversion events; `correction_submitted` is historical.
+
+## Founding featured listings
+
+There is no checkout inside the app and no admin UI. A featured gym is pinned, with a Featured badge, on its city page and its city+discipline pages, and the badge is repeated on the gym page. Other gyms keep the completeness order. The pin and badge stop on their own when `featured_until` is before today in America/New_York. A null `featured_until` has no end date. `/for-gyms` states the offer at $149 for one year and links the sales email and, only when set, the Stripe payment link. Marking a gym featured is still a manual SQL update after payment is confirmed.
+
+Apply `0009_featured.sql` after 0008. Set and clear a placement in the SQL editor:
+
+```sql
+update gyms set featured = true, featured_until = date '2027-11-19' where slug = '<slug>';
+update gyms set featured = false where slug = '<slug>';
+select slug, name, featured_until from gyms
+where featured and (featured_until is null or featured_until >= (timezone('America/New_York', now()))::date);
+```
+
+`featured_until` is the last day the placement is shown, inclusive. Owners cannot set the flag through `edit_owned_gym`. Directory pages pick the change up on their next hourly revalidation.
+
+## Outbound clicks
+
+`POST /api/clicks` accepts a same-origin body with a gym slug and a link type (`website`, `phone`, `instagram`, `facebook`, `tiktok`, `youtube`, `x`). It sends `outbound_click` to Vercel Web Analytics and, in the live directory, calls `record_outbound_click`. The table stores those two fields and the time. It does not store an account, IP, user agent or destination URL. Visitors cannot read it. More than 60 stored clicks for one gym in one minute are ignored.
+
+Apply `0010_outbound_clicks.sql`. Monthly totals, newest month first:
+
+```sql
+select * from outbound_clicks_monthly order by month desc, gym_slug;
+```
+
+`month` is the America/New_York calendar month. `clicks`, `website_clicks`, `phone_clicks` and `social_clicks` are the counts. Sending that total to a gym is a manual email; the site does not send it. Web Analytics still has to be enabled for the custom event to show up there. The table is the source for the report either way.
 
 ## Verification and rollback
 

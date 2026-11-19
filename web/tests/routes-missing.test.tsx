@@ -53,9 +53,12 @@ test("claim stays noindex and says the feature is not available yet, independent
   assert.equal(claim.metadata.alternates?.canonical, "https://findfightgyms.com/claim");
   // Layout imports build-time next/font and CSS; check its static footer copy offline.
   const layout = readFileSync(new URL("../src/app/layout.tsx", import.meta.url), "utf8");
+  const header = readFileSync(new URL("../src/components/SiteHeader.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(layout, /paused/i);
   assert.match(layout, /Claim or submit a gym/);
-  assert.match(layout, /<SiteSearch/);
+  assert.match(layout, /For gym owners/);
+  assert.match(header, /<SiteSearch/);
+  assert.match(header, /showEvents &&/);
 });
 
 test("search page is noindex, escapes the query, and shows the unavailable state without a backend", async () => {

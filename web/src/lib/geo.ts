@@ -44,6 +44,37 @@ export function byCompleteness(a: GymCard, b: GymCard): number {
   return completeness(b) - completeness(a) || byName(a, b);
 }
 
+const FEATURED_ZONE = "America/New_York";
+
+/** Calendar day used for featured_until. Inclusive: the end date itself still shows. */
+export function featuredToday(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: FEATURED_ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+
+/**
+ * Active founding placement. The admin flag must be on, and featured_until must be empty or today-or-later
+ * in America/New_York. A past date hides the placement without anyone clearing the flag.
+ */
+export function isFeatured(g: { featured?: boolean | null; featured_until?: string | null }, today = featuredToday()): boolean {
+  if (g.featured !== true) return false;
+  if (g.featured_until == null || g.featured_until === "") return true;
+  const day = String(g.featured_until).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) && day >= today;
+}
+
+/** Featured gyms first. Everyone else keeps the completeness order, including expired features. */
+export function byListing(a: GymCard, b: GymCard, today = featuredToday()): number {
+  return Number(isFeatured(b, today)) - Number(isFeatured(a, today)) || byCompleteness(a, b);
+}
+
+/** Stable pin: featured rows keep their relative order, then the rest keep theirs. */
+export function pinFeatured<T>(items: T[], featured: (item: T) => boolean): T[] {
+  const top: T[] = [];
+  const rest: T[] = [];
+  for (const item of items) (featured(item) ? top : rest).push(item);
+  return top.length ? [...top, ...rest] : items;
+}
+
 type Located<T> = { item: T; distanceMi: number };
 
 /** Nearest first. Items without coordinates are dropped. */

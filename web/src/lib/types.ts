@@ -117,6 +117,10 @@ export interface GymCard {
   class_count: number;
   /** latest verified price, schedule or owner edit date; absent before migration 0008 */
   last_verified_at?: string | null;
+  /** admin flag for a founding featured listing; absent before migration 0009 */
+  featured?: boolean;
+  /** inclusive last day (YYYY-MM-DD) the feature is shown; null means no end date. absent before migration 0009 */
+  featured_until?: string | null;
   active_fighters: number;
   pro_fighters: number;
   photo_path: string | null;
