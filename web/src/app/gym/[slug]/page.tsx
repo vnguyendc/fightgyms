@@ -3,10 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, FighterBadge } from "@/components/GymCard";
 import { GymPhoto } from "@/components/GymPhoto";
+import { GetFeaturedButton } from "@/components/GetFeatured";
 import OutboundLink from "@/components/OutboundLink";
 import { getAllGyms, getGym, getPlace } from "@/lib/data";
 import { DOW, fmtTime, fullAddress, miles, money, photoUrl } from "@/lib/format";
+import { checkoutConfig } from "@/lib/featured";
 import { featuredToday, isFeatured, sameCityGyms } from "@/lib/geo";
+import { featuredPriceLabel } from "@/lib/stripe";
 import { SITE, breadcrumbJsonLd, cityPath, distinctStyleListing, jsonLd as serializeJsonLd, gymIndexable, pageMetadata, runtimePolicy, safeExternalUrl } from "@/lib/site";
 import { LIVE_STYLES, SOCIAL_LABEL, STYLE_LABEL, TAG_LABEL, type Price } from "@/lib/types";
 
@@ -72,6 +75,9 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
   const trust = [fromWebsite ? "Listed from the gym\u2019s website" : null, lastVerified ? `prices last verified ${lastVerified}` : null].filter(Boolean).join(" · ");
   const cityMates = sameCityGyms(g, all);
   const cityName = g.city ?? place?.city;
+  const featuredNow = isFeatured(g, featuredToday());
+  const checkout = live && !g.is_sample && !featuredNow && !!checkoutConfig();
+  const priceLabel = checkout ? await featuredPriceLabel() : null;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -132,7 +138,7 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
           {trust && <p className="mt-1 text-xs text-muted">{trust}</p>}
           {(g.owner_updated_at || g.prices.some(p => p.verified_by === "gym_claim")) && <p className="mt-2 text-xs text-muted">This listing includes owner-supplied facts. They are not independently checked. Confirm current details with the gym.</p>}
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {isFeatured(g, featuredToday()) && <Badge tone="gold">Featured</Badge>}
+            {featuredNow && <Badge tone="gold">Featured</Badge>}
             {g.styles.map((s) => <Badge key={s} tone="accent">{STYLE_LABEL[s] ?? s}</Badge>)}
             <FighterBadge active={g.active_fighters} pro={g.pro_fighters} />
             {g.tags.map((t) => <Badge key={t}>{TAG_LABEL[t] ?? t}</Badge>)}
@@ -279,8 +285,18 @@ export default async function GymPage({ params }: PageProps<"/gym/[slug]">) {
           )}
           <div className="rounded-xl border border-line p-4 text-sm">
             <div className="font-medium">For gym owners</div>
-            <p className="text-muted mt-1">A founding featured listing stays at the top of this city for a year and shows a Featured badge. $149.</p>
-            <Link href="/for-gyms" className="mt-3 inline-block underline">See what it includes →</Link>
+            {checkout ? (
+              <>
+                <p className="text-muted mt-1">Pin this gym at the top of its city pages with a Featured badge{priceLabel ? `, ${priceLabel}` : ""}. Paid through Stripe, cancel any time.</p>
+                <GetFeaturedButton slug={g.slug} className="mt-3" />
+                <Link href="/for-gyms" className="mt-2 inline-block text-xs underline">What it includes</Link>
+              </>
+            ) : (
+              <>
+                <p className="text-muted mt-1">A founding featured listing stays at the top of this city for a year and shows a Featured badge. $149.</p>
+                <Link href="/for-gyms" className="mt-3 inline-block underline">See what it includes →</Link>
+              </>
+            )}
           </div>
           {place && (
             <div className="rounded-xl border border-line p-4 text-sm">
